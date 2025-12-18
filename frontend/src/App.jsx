@@ -15,9 +15,9 @@ import Login from "./pages/Auth/Login";
 import ProtectedRoute from "./component/auth/ProtectedRoute.jsx";
 /* Protected Pages */
 import Dashboard from "./pages/Dashboard/Dashboard";
-import AllInvoices from "./pages/Invoices/AllInvoices";
-import CreateInvoice from "./pages/Invoices/CreateInvoices";
-import InvoiceDetail from "./pages/Invoices/InvoiceDetail";
+import AllInvoices from "./pages/invoices/AllInvoices.jsx";
+import CreateInvoice from "./pages/invoices/CreateInvoices.jsx";
+import InvoiceDetail from "./pages/invoices/InvoiceDetail.jsx";
 import ProfilePage from "./pages/Profile/ProfilePage";
 import AuthProvider from "./context/AuthContext.jsx";
 
