@@ -18,7 +18,7 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import AllInvoices from "./pages/invoices/AllInvoices.jsx";
 import CreateInvoice from "./pages/invoices/CreateInvoices.jsx";
 import InvoiceDetail from "./pages/invoices/InvoiceDetail.jsx";
-import ProfilePage from "./pages/Profile/ProfilePage";
+import ProfilePage from "./pages/profile/profilePage.jsx";
 import AuthProvider from "./context/AuthContext.jsx";
 
 const App = () => {
