@@ -1,0 +1,268 @@
+const Invoice = require("../models/Invoice");
+
+// @desc Create new invoice
+// @route POST /api/invoices
+// @access Private
+exports.createInvoice = async (req, res) => {
+  try {
+    const user = req.user;
+
+    const {
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      billFrom,
+      billTo,
+      items,
+      notes,
+      paymentTerms,
+      status = "Pending", // Add default status
+    } = req.body;
+
+    // Validate required fields
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: "At least one item is required" });
+    }
+
+    // subtotal calculation
+    let subtotal = 0;
+    let taxTotal = 0;
+
+    items.forEach((item) => {
+      const itemTotal = item.unitPrice * item.quantity;
+      subtotal += itemTotal;
+      taxTotal += itemTotal * ((item.taxPercent || 0) / 100);
+    });
+
+    const total = subtotal + taxTotal;
+
+    const invoice = new Invoice({
+      user: user._id || user.id,
+      invoiceNumber,
+      invoiceDate: invoiceDate || new Date(),
+      dueDate,
+      billFrom,
+      billTo,
+      items,
+      notes,
+      paymentTerms: paymentTerms || "Net 15",
+      status: status || "Pending",
+      subtotal,
+      taxTotal,
+      total,
+    });
+
+    await invoice.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Invoice created successfully",
+      data: invoice,
+    });
+  } catch (error) {
+    console.error("Create invoice error:", error);
+    
+    // Handle duplicate invoice number
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invoice number already exists" 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: "Error creating invoice", 
+      error: error.message 
+    });
+  }
+};
+
+// @desc Get all invoices of logged-in user
+// @route GET /api/invoices
+// @access Private
+exports.getInvoices = async (req, res) => {
+  try {
+    console.log("Fetching invoices for user:", req.user.id);
+    
+    // FIXED: Removed the incorrect check that was blocking all requests
+    const invoices = await Invoice.find({ user: req.user.id })
+      .populate("user", "name email")
+      .sort({ createdAt: -1 }); // Newest first
+
+    console.log(`Found ${invoices.length} invoices for user ${req.user.id}`);
+
+    res.json({
+      success: true,
+      count: invoices.length,
+      data: invoices,
+    });
+  } catch (error) {
+    console.error("Get invoices error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error fetching invoices", 
+      error: error.message 
+    });
+  }
+};
+
+// @desc Get single invoice by ID
+// @route GET /api/invoices/:id
+// @access Private
+exports.getInvoiceById = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id)
+      .populate("user", "name email");
+    
+    if (!invoice) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Invoice not found" 
+      });
+    }
+
+    // Check if invoice belongs to the user
+    if (invoice.user._id.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Not authorized to access this invoice" 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: invoice,
+    });
+  } catch (error) {
+    console.error("Get invoice by ID error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error fetching invoice", 
+      error: error.message 
+    });
+  }
+};
+
+// @desc Update invoice
+// @route PUT /api/invoices/:id
+// @access Private
+exports.updateInvoice = async (req, res) => {
+  try {
+    const {
+      invoiceNumber,
+      invoiceDate,
+      dueDate,
+      billFrom,
+      billTo,
+      items,
+      notes,
+      paymentTerms,
+      status,
+    } = req.body;
+
+    // Check if invoice exists and belongs to user
+    const existingInvoice = await Invoice.findById(req.params.id);
+    if (!existingInvoice) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Invoice not found" 
+      });
+    }
+
+    if (existingInvoice.user.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Not authorized to update this invoice" 
+      });
+    }
+
+    // recalculate totals if items changed
+    let subtotal = 0;
+    let taxTotal = 0;
+
+    if (items && items.length > 0) {
+      items.forEach((item) => {
+        const itemTotal = item.unitPrice * item.quantity;
+        subtotal += itemTotal;
+        taxTotal += itemTotal * ((item.taxPercent || 0) / 100);
+      });
+    } else {
+      // Use existing values if items not provided
+      subtotal = existingInvoice.subtotal;
+      taxTotal = existingInvoice.taxTotal;
+    }
+
+    const total = subtotal + taxTotal;
+
+    const updatedInvoice = await Invoice.findByIdAndUpdate(
+      req.params.id,
+      {
+        invoiceNumber: invoiceNumber || existingInvoice.invoiceNumber,
+        invoiceDate: invoiceDate || existingInvoice.invoiceDate,
+        dueDate: dueDate || existingInvoice.dueDate,
+        billFrom: billFrom || existingInvoice.billFrom,
+        billTo: billTo || existingInvoice.billTo,
+        items: items || existingInvoice.items,
+        notes: notes !== undefined ? notes : existingInvoice.notes,
+        paymentTerms: paymentTerms || existingInvoice.paymentTerms,
+        status: status || existingInvoice.status,
+        subtotal,
+        taxTotal,
+        total,
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Invoice updated successfully",
+      data: updatedInvoice,
+    });
+  } catch (error) {
+    console.error("Update invoice error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error updating invoice", 
+      error: error.message 
+    });
+  }
+};
+
+// @desc Delete invoice
+// @route DELETE /api/invoices/:id
+// @access Private
+exports.deleteInvoice = async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+    
+    if (!invoice) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Invoice not found" 
+      });
+    }
+
+    // Check if invoice belongs to the user
+    if (invoice.user.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Not authorized to delete this invoice" 
+      });
+    }
+
+    await Invoice.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: "Invoice deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete invoice error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Error deleting invoice", 
+      error: error.message 
+    });
+  }
+};
