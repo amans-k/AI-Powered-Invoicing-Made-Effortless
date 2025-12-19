@@ -259,7 +259,7 @@ const AllInvoices = () => {
                       onClick={() => navigate(`/invoices/${invoice._id || invoice.id}`)}
                       className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 cursor-pointer"
                     >
-                      ${(invoice.total || invoice.amount || 0).toFixed(2)}
+                      ₹{(invoice.total || invoice.amount || 0).toFixed(2)}
                     </td>
                     <td
                       onClick={() => navigate(`/invoices/${invoice._id || invoice.id}`)}

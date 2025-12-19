@@ -483,7 +483,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
                     />
                   </td>
                   <td className="px-2 sm:px-6 py-4 text-sm text-slate-500 font-medium">
-                    ${((item.quantity || 0) * (item.unitPrice || 0) * (1 + (item.taxPercent || 0) / 100)).toFixed(2)}
+                    ₹{((item.quantity || 0) * (item.unitPrice || 0) * (1 + (item.taxPercent || 0) / 100)).toFixed(2)}
                   </td>
                   <td className="px-2 sm:px-6 py-4">
                     {formData.items.length > 1 && (
@@ -545,15 +545,15 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           <div className="space-y-4">
             <div className="flex justify-between text-sm text-slate-600">
               <p>Subtotal:</p>
-              <p className="font-medium">${subtotal.toFixed(2)}</p>
+              <p className="font-medium">₹{subtotal.toFixed(2)}</p>
             </div>
             <div className="flex justify-between text-sm text-slate-600">
               <p>Tax:</p>
-              <p className="font-medium">${taxTotal.toFixed(2)}</p>
+              <p className="font-medium">₹{taxTotal.toFixed(2)}</p>
             </div>
             <div className="flex justify-between text-lg font-semibold text-slate-800 border-t border-slate-200 pt-4 mt-4">
               <p>Total:</p>
-              <p>${total.toFixed(2)}</p>
+              <p>₹{total.toFixed(2)}</p>
             </div>
           </div>
         </div>

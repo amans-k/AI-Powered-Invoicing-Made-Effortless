@@ -213,10 +213,10 @@ const InvoiceDetail = () => {
                     <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">{item.name || 'Item'}</td>
                     <td className="px-4 sm:px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity || 0}</td>
                     <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-600">
-                      ${item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'}
+                      ₹{item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'}
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-900">
-                      ${item.total ? parseFloat(item.total).toFixed(2) : '0.00'}
+                      ₹{item.total ? parseFloat(item.total).toFixed(2) : '0.00'}
                     </td>
                   </tr>
                 ))}
@@ -228,15 +228,15 @@ const InvoiceDetail = () => {
             <div className="w-full max-w-sm space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Subtotal</span>
-                <span>${invoice.subtotal ? parseFloat(invoice.subtotal).toFixed(2) : '0.00'}</span>
+                <span>₹{invoice.subtotal ? parseFloat(invoice.subtotal).toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm text-slate-600">
                 <span>Tax</span>
-                <span>${invoice.taxTotal ? parseFloat(invoice.taxTotal).toFixed(2) : '0.00'}</span>
+                <span>₹{invoice.taxTotal ? parseFloat(invoice.taxTotal).toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between font-semibold text-lg text-slate-900 border-t border-slate-200 pt-3 mt-3">
                 <span>Total</span>
-                <span>${invoice.total ? parseFloat(invoice.total).toFixed(2) : '0.00'}</span>
+                <span>₹{invoice.total ? parseFloat(invoice.total).toFixed(2) : '0.00'}</span>
               </div>
             </div>
           </div>
