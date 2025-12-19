@@ -1,4 +1,7 @@
-export const BASE_URL = "http://localhost:8000";
+// frontend/src/utils/apiPaths.js
+
+// Use environment variable for base URL, fallback to localhost
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export const API_PATHS = {
   AUTH: {
