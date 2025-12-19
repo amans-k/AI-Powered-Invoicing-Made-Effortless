@@ -1,7 +1,8 @@
-// frontend/src/utils/apiPaths.js
+// For Production (Render)
+export const BASE_URL = "https://invoice-backend-ca4g.onrender.com";
 
-// Use environment variable for base URL, fallback to localhost
-export const BASE_URL = "https://invoice-backend-n06r.onrender.com";
+// For Local Development
+// export const BASE_URL = "http://localhost:8000";
 
 export const API_PATHS = {
   AUTH: {
@@ -25,3 +26,16 @@ export const API_PATHS = {
     GET_DASHBOARD_SUMMARY: "/api/ai/dashboard-summary",
   },
 };
+
+// Optional: Auto-detect environment
+export const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    // Check if we're on localhost
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return "http://localhost:8000";
+    }
+  }
+  return "https://invoice-backend-ca4g.onrender.com";
+};
+
+// Use like this: `${getBaseUrl()}${API_PATHS.AUTH.LOGIN}`
