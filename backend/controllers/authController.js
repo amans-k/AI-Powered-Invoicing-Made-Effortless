@@ -2,9 +2,9 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/user");
 const bcrypt = require("bcryptjs"); // IMPORTANT: Add this line
 
-// Helper: Generate JWT
+// Helper: Generate JWT - CHANGED FROM "7d" TO "180d" (6 MONTHS)
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "180d" }); // Updated line
 };
 
 // @desc Register new user
