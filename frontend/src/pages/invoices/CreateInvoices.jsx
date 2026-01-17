@@ -44,10 +44,11 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       address: "",
       phone: "",
     },
-    items: [{ name: "", quantity: 1, unitPrice: 0, taxPercent: 0 }],
+    items: [{ name: "", quantity: 1, unitPrice: 0, discountPercent: 0 }],
     notes: "",
     paymentTerms: "Net 15",
     status: "Pending",
+    invoiceDiscount: 0, // New field for invoice-level discount
   });
 
   const [loading, setLoading] = useState(false);
@@ -60,9 +61,9 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             name: item.name || "",
             quantity: item.quantity || 1,
             unitPrice: item.unitPrice || 0,
-            taxPercent: item.taxPercent || 0,
+            discountPercent: item.discountPercent || item.taxPercent || 0, // Handle both old and new
           }))
-        : [{ name: "", quantity: 1, unitPrice: 0, taxPercent: 0 }];
+        : [{ name: "", quantity: 1, unitPrice: 0, discountPercent: 0 }];
 
       setFormData({
         ...existingInvoice,
@@ -86,6 +87,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           phone: existingInvoice.billTo?.phone || "",
         },
         items: formattedItems,
+        invoiceDiscount: existingInvoice.invoiceDiscount || 0,
         notes: existingInvoice.notes || "",
         paymentTerms: existingInvoice.paymentTerms || "Net 15",
         status: existingInvoice.status || "Pending",
@@ -145,7 +147,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
               name: item.name || "",
               quantity: item.quantity || 1,
               unitPrice: item.unitPrice || 0,
-              taxPercent: item.taxPercent || 0
+              discountPercent: item.discountPercent || item.taxPercent || 0
             }))
           : prev.items,
       }));
@@ -179,7 +181,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       ...formData,
       items: [
         ...(formData.items || []),
-        { name: "", quantity: 1, unitPrice: 0, taxPercent: 0 },
+        { name: "", quantity: 1, unitPrice: 0, discountPercent: 0 },
       ],
     });
   };
@@ -189,31 +191,46 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     setFormData({ ...formData, items: newItems });
   };
 
-  // Calculate totals
-  const { subtotal, taxTotal, total } = (() => {
+  // Calculate totals with discount
+  const calculateTotals = () => {
     let subtotal = 0;
-    let taxTotal = 0;
+    let totalDiscount = 0;
+    let itemDiscountTotal = 0;
 
     if (formData.items && Array.isArray(formData.items)) {
       formData.items.forEach((item) => {
         const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
         subtotal += itemTotal;
-        taxTotal += itemTotal * ((item.taxPercent || 0) / 100);
+        
+        // Calculate item-level discount
+        const itemDiscount = itemTotal * ((item.discountPercent || 0) / 100);
+        itemDiscountTotal += itemDiscount;
       });
     }
 
+    // Calculate invoice-level discount (on subtotal after item discounts)
+    const discountedSubtotal = subtotal - itemDiscountTotal;
+    const invoiceDiscountAmount = discountedSubtotal * ((formData.invoiceDiscount || 0) / 100);
+    totalDiscount = itemDiscountTotal + invoiceDiscountAmount;
+    
+    const finalTotal = subtotal - totalDiscount;
+
     return {
-      subtotal,
-      taxTotal,
-      total: subtotal + taxTotal,
+      subtotal: Number(subtotal.toFixed(2)),
+      totalDiscount: Number(totalDiscount.toFixed(2)),
+      itemDiscount: Number(itemDiscountTotal.toFixed(2)),
+      invoiceDiscount: Number(invoiceDiscountAmount.toFixed(2)),
+      finalTotal: Number(finalTotal.toFixed(2))
     };
-  })();
+  };
+
+  const totals = calculateTotals();
 
   const handleItemChange = (e, index) => {
     const { name, value } = e.target;
     const newItems = [...(formData.items || [])];
     
-    const processedValue = ['quantity', 'unitPrice', 'taxPercent'].includes(name)
+    const processedValue = ['quantity', 'unitPrice', 'discountPercent'].includes(name)
       ? parseFloat(value) || 0
       : value;
 
@@ -244,29 +261,20 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       // Prepare items WITH total field (backend requirement)
       const itemsForSubmission = validItems.map(item => {
         const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
-        const taxAmount = itemTotal * ((item.taxPercent || 0) / 100);
-        const totalWithTax = itemTotal + taxAmount;
+        const discountAmount = itemTotal * ((item.discountPercent || 0) / 100);
+        const totalAfterDiscount = itemTotal - discountAmount;
         
         return {
           name: item.name || "",
           quantity: Number(item.quantity) || 0,
           unitPrice: Number(item.unitPrice) || 0,
-          taxPercent: Number(item.taxPercent) || 0,
-          total: Number(totalWithTax.toFixed(2)) // ✅ Required by backend
+          discountPercent: Number(item.discountPercent) || 0,
+          total: Number(totalAfterDiscount.toFixed(2)) // ✅ Required by backend
         };
       });
 
-      // Calculate totals
-      let subtotal = 0;
-      let taxTotal = 0;
-      
-      itemsForSubmission.forEach(item => {
-        const itemTotal = item.quantity * item.unitPrice;
-        subtotal += itemTotal;
-        taxTotal += itemTotal * (item.taxPercent / 100);
-      });
-      
-      const total = subtotal + taxTotal;
+      // Calculate final totals
+      const finalTotals = calculateTotals();
 
       const finalFormData = {
         invoiceNumber: formData.invoiceNumber || "",
@@ -285,12 +293,13 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           phone: formData.billTo?.phone || ""
         },
         items: itemsForSubmission,
+        invoiceDiscount: Number(formData.invoiceDiscount) || 0,
         notes: formData.notes || "",
         paymentTerms: formData.paymentTerms || "Net 15",
         status: formData.status || "Pending",
-        subtotal: Number(subtotal.toFixed(2)),
-        taxTotal: Number(taxTotal.toFixed(2)),
-        total: Number(total.toFixed(2))
+        subtotal: finalTotals.subtotal,
+        discountTotal: finalTotals.totalDiscount,
+        total: finalTotals.finalTotal
       };
 
       if (onSave) {
@@ -446,7 +455,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Item</th>
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Price</th>
-                <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tax (%)</th>
+                <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Disc (%)</th>
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
                 <th className="px-2 sm:px-6 py-3"></th>
               </tr>
@@ -494,8 +503,8 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
                   <td className="px-2 sm:px-6 py-4">
                     <input 
                       type="number" 
-                      name="taxPercent" 
-                      value={item.taxPercent || ""} 
+                      name="discountPercent" 
+                      value={item.discountPercent || ""} 
                       onChange={(e) => handleItemChange(e, index)} 
                       className="w-full h-10 px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                       placeholder="0" 
@@ -505,7 +514,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
                     />
                   </td>
                   <td className="px-2 sm:px-6 py-4 text-sm text-slate-500 font-medium">
-                    ₹{((item.quantity || 0) * (item.unitPrice || 0) * (1 + (item.taxPercent || 0) / 100)).toFixed(2)}
+                    ₹{((item.quantity || 0) * (item.unitPrice || 0) * (1 - (item.discountPercent || 0) / 100)).toFixed(2)}
                   </td>
                   <td className="px-2 sm:px-6 py-4">
                     {formData.items.length > 1 && (
@@ -546,6 +555,26 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             onChange={handleInputChange}
             rows={4}
           />
+          
+          {/* Invoice-level Discount */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Invoice Discount (%)
+            </label>
+            <input
+              type="number"
+              name="invoiceDiscount"
+              value={formData.invoiceDiscount || ""}
+              onChange={handleInputChange}
+              className="w-full h-10 px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="0"
+              min="0"
+              max="100"
+              step="0.1"
+            />
+            <p className="text-xs text-slate-500 mt-1">Discount applied on subtotal after item discounts</p>
+          </div>
+
           <SelectField
             label="Payment Terms"
             name="paymentTerms"
@@ -564,18 +593,34 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           />
         </div>
         <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200 flex flex-col justify-center">
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex justify-between text-sm text-slate-600">
               <p>Subtotal:</p>
-              <p className="font-medium">₹{subtotal.toFixed(2)}</p>
+              <p className="font-medium">₹{totals.subtotal.toFixed(2)}</p>
             </div>
-            <div className="flex justify-between text-sm text-slate-600">
-              <p>Tax:</p>
-              <p className="font-medium">₹{taxTotal.toFixed(2)}</p>
+            
+            {totals.itemDiscount > 0 && (
+              <div className="flex justify-between text-sm text-red-600">
+                <p>Item Discounts:</p>
+                <p className="font-medium">-₹{totals.itemDiscount.toFixed(2)}</p>
+              </div>
+            )}
+            
+            {formData.invoiceDiscount > 0 && (
+              <div className="flex justify-between text-sm text-red-600">
+                <p>Invoice Discount ({formData.invoiceDiscount}%):</p>
+                <p className="font-medium">-₹{totals.invoiceDiscount.toFixed(2)}</p>
+              </div>
+            )}
+            
+            <div className="flex justify-between text-sm text-slate-600 border-t border-slate-200 pt-2">
+              <p>Total Discount:</p>
+              <p className="font-medium text-red-600">-₹{totals.totalDiscount.toFixed(2)}</p>
             </div>
-            <div className="flex justify-between text-lg font-semibold text-slate-800 border-t border-slate-200 pt-4 mt-4">
-              <p>Total:</p>
-              <p>₹{total.toFixed(2)}</p>
+            
+            <div className="flex justify-between text-lg font-semibold text-slate-800 border-t border-slate-200 pt-3 mt-2">
+              <p>Final Total:</p>
+              <p>₹{totals.finalTotal.toFixed(2)}</p>
             </div>
           </div>
         </div>
