@@ -16,7 +16,8 @@ exports.createInvoice = async (req, res) => {
       items,
       notes,
       paymentTerms,
-      status = "Pending", // Add default status
+      status = "Pending",
+      invoiceDiscount = 0, // New field
     } = req.body;
 
     // Validate required fields
@@ -24,17 +25,26 @@ exports.createInvoice = async (req, res) => {
       return res.status(400).json({ message: "At least one item is required" });
     }
 
-    // subtotal calculation
+    // Calculate totals with discount
     let subtotal = 0;
-    let taxTotal = 0;
+    let itemDiscountTotal = 0;
+    let discountTotal = 0;
 
     items.forEach((item) => {
       const itemTotal = item.unitPrice * item.quantity;
       subtotal += itemTotal;
-      taxTotal += itemTotal * ((item.taxPercent || 0) / 100);
+      
+      // Calculate item-level discount
+      const itemDiscount = itemTotal * ((item.discountPercent || 0) / 100);
+      itemDiscountTotal += itemDiscount;
     });
 
-    const total = subtotal + taxTotal;
+    // Calculate invoice-level discount (on subtotal after item discounts)
+    const discountedSubtotal = subtotal - itemDiscountTotal;
+    const invoiceDiscountAmount = discountedSubtotal * ((invoiceDiscount || 0) / 100);
+    discountTotal = itemDiscountTotal + invoiceDiscountAmount;
+    
+    const total = subtotal - discountTotal;
 
     const invoice = new Invoice({
       user: user._id || user.id,
@@ -43,12 +53,17 @@ exports.createInvoice = async (req, res) => {
       dueDate,
       billFrom,
       billTo,
-      items,
+      items: items.map(item => ({
+        ...item,
+        taxPercent: item.discountPercent || 0, // For backward compatibility
+        discountPercent: item.discountPercent || 0
+      })),
       notes,
       paymentTerms: paymentTerms || "Net 15",
       status: status || "Pending",
+      invoiceDiscount: invoiceDiscount || 0,
       subtotal,
-      taxTotal,
+      discountTotal, // Changed from taxTotal to discountTotal
       total,
     });
 
@@ -159,6 +174,7 @@ exports.updateInvoice = async (req, res) => {
       notes,
       paymentTerms,
       status,
+      invoiceDiscount = 0, // New field
     } = req.body;
 
     // Check if invoice exists and belongs to user
@@ -177,23 +193,32 @@ exports.updateInvoice = async (req, res) => {
       });
     }
 
-    // recalculate totals if items changed
+    // Recalculate totals with discount
     let subtotal = 0;
-    let taxTotal = 0;
+    let itemDiscountTotal = 0;
+    let discountTotal = 0;
 
     if (items && items.length > 0) {
       items.forEach((item) => {
         const itemTotal = item.unitPrice * item.quantity;
         subtotal += itemTotal;
-        taxTotal += itemTotal * ((item.taxPercent || 0) / 100);
+        
+        // Calculate item-level discount
+        const itemDiscount = itemTotal * ((item.discountPercent || 0) / 100);
+        itemDiscountTotal += itemDiscount;
       });
+      
+      // Calculate invoice-level discount
+      const discountedSubtotal = subtotal - itemDiscountTotal;
+      const invoiceDiscountAmount = discountedSubtotal * ((invoiceDiscount || 0) / 100);
+      discountTotal = itemDiscountTotal + invoiceDiscountAmount;
     } else {
       // Use existing values if items not provided
       subtotal = existingInvoice.subtotal;
-      taxTotal = existingInvoice.taxTotal;
+      discountTotal = existingInvoice.discountTotal || 0;
     }
 
-    const total = subtotal + taxTotal;
+    const total = subtotal - discountTotal;
 
     const updatedInvoice = await Invoice.findByIdAndUpdate(
       req.params.id,
@@ -203,12 +228,17 @@ exports.updateInvoice = async (req, res) => {
         dueDate: dueDate || existingInvoice.dueDate,
         billFrom: billFrom || existingInvoice.billFrom,
         billTo: billTo || existingInvoice.billTo,
-        items: items || existingInvoice.items,
+        items: items ? items.map(item => ({
+          ...item,
+          taxPercent: item.discountPercent || 0, // For backward compatibility
+          discountPercent: item.discountPercent || 0
+        })) : existingInvoice.items,
         notes: notes !== undefined ? notes : existingInvoice.notes,
         paymentTerms: paymentTerms || existingInvoice.paymentTerms,
         status: status || existingInvoice.status,
+        invoiceDiscount: invoiceDiscount || existingInvoice.invoiceDiscount || 0,
         subtotal,
-        taxTotal,
+        discountTotal,
         total,
       },
       { new: true, runValidators: true }

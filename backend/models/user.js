@@ -24,14 +24,28 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    // Personal/Business Information
     businessName: { 
       type: String, 
-      default: "",
+      default: "Cotton Stock Kids Wear", // Default business name
     },
+    
+    businessEmail: {
+      type: String,
+      default: "cottonstockkidswear27@gmail.com", // Fixed business email
+    },
+    
+    businessPhone: {
+      type: String,
+      default: "9892613808", // Fixed business phone
+    },
+    
     address: { 
       type: String, 
-      default: "",
+      default: "", // User will fill this
     },
+    
+    // Personal phone (optional)
     phone: { 
       type: String, 
       default: "",
@@ -41,9 +55,6 @@ const userSchema = new mongoose.Schema(
     timestamps: true 
   }
 );
-
-// REMOVE THE PRE-SAVE MIDDLEWARE COMPLETELY FOR NOW
-// We're handling password hashing in the controller
 
 // Method to compare password
 userSchema.methods.matchPassword = async function (enteredPassword) {

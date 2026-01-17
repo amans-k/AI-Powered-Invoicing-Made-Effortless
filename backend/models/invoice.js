@@ -4,7 +4,7 @@ const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   quantity: { type: Number, required: true },
   unitPrice: { type: Number, required: true },
-  taxPercent: { type: Number, default: 0 },
+  discountPercent: { type: Number, default: 0 }, // Changed from taxPercent to discountPercent
   total: { type: Number, required: true },
 });
 
@@ -19,7 +19,7 @@ const invoiceSchema = new mongoose.Schema(
     invoiceNumber: {
       type: String,
       required: true,
-      unique: true, // Add unique constraint
+      unique: true,
     },
 
     invoiceDate: {
@@ -29,7 +29,7 @@ const invoiceSchema = new mongoose.Schema(
 
     dueDate: {
       type: Date,
-      required: true, // Make required
+      required: true,
     },
 
     billFrom: {
@@ -40,7 +40,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     
     billTo: {
-      clientName: String, // FIXED: Changed from "clientname" to "clientName"
+      clientName: String,
       email: String,
       address: String,
       phone: String,
@@ -59,12 +59,14 @@ const invoiceSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Paid", "Pending", "Unpaid", "Overdue"], // Added "Pending"
-      default: "Pending", // Changed from "Unpaid" to "Pending"
+      enum: ["Paid", "Pending", "Unpaid", "Overdue"],
+      default: "Pending",
     },
 
+    // Updated fields for discount
     subtotal: Number,
-    taxTotal: Number,
+    discountTotal: Number, // Changed from taxTotal to discountTotal
+    invoiceDiscount: { type: Number, default: 0 }, // New: invoice-level discount percentage
     total: Number,
   },
   { timestamps: true }
