@@ -4,7 +4,7 @@ const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   quantity: { type: Number, required: true },
   unitPrice: { type: Number, required: true },
-  discountPercent: { type: Number, default: 0 }, // Changed from taxPercent to discountPercent
+  discountPercent: { type: Number, default: 0 },
   total: { type: Number, required: true },
 });
 
@@ -57,16 +57,21 @@ const invoiceSchema = new mongoose.Schema(
       default: "Net 15",
     },
 
+    paymentMode: {  // New field
+      type: String,
+      enum: ["Cash", "Online", "Cheque", "Card", "UPI", "Bank Transfer"],
+      default: "Cash",
+    },
+
     status: {
       type: String,
       enum: ["Paid", "Pending", "Unpaid", "Overdue"],
       default: "Pending",
     },
 
-    // Updated fields for discount
     subtotal: Number,
-    discountTotal: Number, // Changed from taxTotal to discountTotal
-    invoiceDiscount: { type: Number, default: 0 }, // New: invoice-level discount percentage
+    discountTotal: Number,
+    invoiceDiscount: { type: Number, default: 0 },
     total: Number,
   },
   { timestamps: true }

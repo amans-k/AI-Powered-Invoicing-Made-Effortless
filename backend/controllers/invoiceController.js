@@ -16,8 +16,9 @@ exports.createInvoice = async (req, res) => {
       items,
       notes,
       paymentTerms,
+      paymentMode = "Cash", // New: default payment mode
       status = "Pending",
-      invoiceDiscount = 0, // New field
+      invoiceDiscount = 0,
     } = req.body;
 
     // Validate required fields
@@ -60,10 +61,11 @@ exports.createInvoice = async (req, res) => {
       })),
       notes,
       paymentTerms: paymentTerms || "Net 15",
+      paymentMode: paymentMode || "Cash", // Include payment mode
       status: status || "Pending",
       invoiceDiscount: invoiceDiscount || 0,
       subtotal,
-      discountTotal, // Changed from taxTotal to discountTotal
+      discountTotal,
       total,
     });
 
@@ -100,10 +102,9 @@ exports.getInvoices = async (req, res) => {
   try {
     console.log("Fetching invoices for user:", req.user.id);
     
-    // FIXED: Removed the incorrect check that was blocking all requests
     const invoices = await Invoice.find({ user: req.user.id })
       .populate("user", "name email")
-      .sort({ createdAt: -1 }); // Newest first
+      .sort({ createdAt: -1 });
 
     console.log(`Found ${invoices.length} invoices for user ${req.user.id}`);
 
@@ -173,8 +174,9 @@ exports.updateInvoice = async (req, res) => {
       items,
       notes,
       paymentTerms,
+      paymentMode,
       status,
-      invoiceDiscount = 0, // New field
+      invoiceDiscount = 0,
     } = req.body;
 
     // Check if invoice exists and belongs to user
@@ -235,6 +237,7 @@ exports.updateInvoice = async (req, res) => {
         })) : existingInvoice.items,
         notes: notes !== undefined ? notes : existingInvoice.notes,
         paymentTerms: paymentTerms || existingInvoice.paymentTerms,
+        paymentMode: paymentMode || existingInvoice.paymentMode || "Cash", // Include payment mode
         status: status || existingInvoice.status,
         invoiceDiscount: invoiceDiscount || existingInvoice.invoiceDiscount || 0,
         subtotal,
