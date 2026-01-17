@@ -6,12 +6,12 @@ import moment from "moment";
 import { useNavigate } from "react-router-dom";
 import Button from "../../component/ui/Button";
 import CreateWithAIModal from "../../component/Invoices/CreateWithAIModal";
-import ReminderModal from "../../component/Invoices/ReminderModal"; // ADDED IMPORT
+import ReminderModal from "../../component/Invoices/ReminderModal";
 
 const AllInvoices = () => {
   const [isModelOpen, setIsModelOpen] = useState(false);
-  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false); // ADDED STATE
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null); // ADDED STATE
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -110,8 +110,8 @@ const AllInvoices = () => {
   };
 
   const handleOpenReminderModal = (invoiceId) => {
-    setSelectedInvoiceId(invoiceId); // SET SELECTED INVOICE ID
-    setIsReminderModalOpen(true); // OPEN REMINDER MODAL
+    setSelectedInvoiceId(invoiceId);
+    setIsReminderModalOpen(true);
   };
 
   const handleCreateWithAI = () => {
@@ -247,7 +247,10 @@ const AllInvoices = () => {
                       onClick={() => navigate(`/invoices/${invoice._id || invoice.id}`)}
                       className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 cursor-pointer"
                     >
-                      {invoice.invoiceNumber || `INV-${(invoice._id || invoice.id).slice(-6)}`}
+                      {/* Display just the number without INV- prefix */}
+                      {invoice.invoiceNumber ? 
+                        invoice.invoiceNumber.replace(/^INV-/, '') : 
+                        `INV-${(invoice._id || invoice.id).slice(-6)}`}
                     </td>
                     <td
                       onClick={() => navigate(`/invoices/${invoice._id || invoice.id}`)}
@@ -332,7 +335,7 @@ const AllInvoices = () => {
         onClose={() => setIsModelOpen(false)}
       />
       
-      {/* ADDED: Reminder Modal */}
+      {/* Reminder Modal */}
       <ReminderModal
         isopen={isReminderModalOpen}
         onClose={() => {

@@ -3,6 +3,14 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
 
+// Fixed business information - can be moved to .env file if needed
+const FIXED_BUSINESS_INFO = {
+  businessName: "Cotton Stock Kids Wear",
+  email: "cottonstockkidswear27@gmail.com",
+  phone: "9892613808",
+  // Address will be stored in user profile
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
 
@@ -19,6 +27,23 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [error, setError] = useState(null);
 
+  // Initialize user with fixed business info if not present
+  const initializeUserWithBusinessInfo = (userData) => {
+    if (!userData) return null;
+    
+    return {
+      ...userData,
+      // Add fixed business info to user object for easy access
+      businessName: userData.businessName || FIXED_BUSINESS_INFO.businessName,
+      businessEmail: userData.businessEmail || FIXED_BUSINESS_INFO.email,
+      businessPhone: userData.businessPhone || FIXED_BUSINESS_INFO.phone,
+      // User's personal/address info
+      address: userData.address || "",
+      phone: userData.phone || "",
+      email: userData.email || "",
+    };
+  };
+
   const checkAuthStatus = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -31,7 +56,10 @@ export const AuthProvider = ({ children }) => {
         try {
           const userData = JSON.parse(userStr);
           console.log("🛡️ Auth check - Parsed user:", userData);
-          setUser(userData);
+          
+          // Initialize with business info
+          const initializedUser = initializeUserWithBusinessInfo(userData);
+          setUser(initializedUser);
           setIsAuthenticated(true);
         } catch (parseError) {
           console.error("🛡️ Auth check - Error parsing user:", parseError);
@@ -103,22 +131,25 @@ export const AuthProvider = ({ children }) => {
         delete normalizedUserData._id;
       }
       
-      console.log("🛡️ Normalized user data:", normalizedUserData);
+      // Initialize with business info
+      const initializedUser = initializeUserWithBusinessInfo(normalizedUserData);
+      
+      console.log("🛡️ Initialized user data with business info:", initializedUser);
       
       // Save to localStorage
       localStorage.setItem("token", _token);
-      localStorage.setItem("user", JSON.stringify(normalizedUserData));
+      localStorage.setItem("user", JSON.stringify(initializedUser));
       
       console.log("🛡️ LocalStorage after login:");
       console.log("   - Token:", localStorage.getItem("token")?.substring(0, 20) + "...");
       console.log("   - User:", JSON.parse(localStorage.getItem("user")));
       
       // Update state
-      setUser(normalizedUserData);
+      setUser(initializedUser);
       setIsAuthenticated(true);
       setError(null);
       
-      return { success: true, user: normalizedUserData };
+      return { success: true, user: initializedUser };
       
     } catch (storageError) {
       console.error("🛡️ Storage error:", storageError);
@@ -140,9 +171,39 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUser = (_updatedUserData) => {
-    const newUserData = { ...user, ..._updatedUserData };
+    const newUserData = initializeUserWithBusinessInfo({ ...user, ..._updatedUserData });
     localStorage.setItem("user", JSON.stringify(newUserData));
     setUser(newUserData);
+    
+    // Return updated user for convenience
+    return newUserData;
+  };
+
+  // Specific function to update user address
+  const updateUserAddress = (address) => {
+    if (!user) {
+      console.error("🛡️ Cannot update address: No user logged in");
+      return { success: false, error: "No user logged in" };
+    }
+    
+    try {
+      const updatedUser = updateUser({ address });
+      console.log("🛡️ User address updated:", address);
+      return { success: true, user: updatedUser };
+    } catch (error) {
+      console.error("🛡️ Error updating address:", error);
+      return { success: false, error: "Failed to update address" };
+    }
+  };
+
+  // Get business info for forms
+  const getBusinessInfo = () => {
+    return {
+      businessName: user?.businessName || FIXED_BUSINESS_INFO.businessName,
+      email: user?.businessEmail || FIXED_BUSINESS_INFO.email,
+      phone: user?.businessPhone || FIXED_BUSINESS_INFO.phone,
+      address: user?.address || "", // User will fill this
+    };
   };
 
   const clearError = () => {
@@ -157,6 +218,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUser,
+    updateUserAddress,
+    getBusinessInfo,
     checkAuthStatus,
     clearError,
   };

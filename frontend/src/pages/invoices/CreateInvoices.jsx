@@ -18,16 +18,25 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
   const location = useLocation();
   const { user } = useAuth();
 
+  // Fixed business information
+  const fixedBusinessInfo = {
+    businessName: "Cotton Stock Kids Wear",
+    email: "cottonstockkidswear27@gmail.com",
+    phone: "9892613808",
+    // Address will be filled by user
+    address: ""
+  };
+
   // Initial form state
   const [formData, setFormData] = useState({
     invoiceNumber: "",
     invoiceDate: new Date().toISOString().split("T")[0],
     dueDate: "",
     billFrom: {
-      businessName: user?.businessName || "",
-      email: user?.email || "",
-      address: user?.address || "",
-      phone: user?.phone || "",
+      businessName: fixedBusinessInfo.businessName,
+      email: fixedBusinessInfo.email,
+      address: user?.address || "", // User will fill address
+      phone: fixedBusinessInfo.phone,
     },
     billTo: {
       clientName: "",
@@ -65,10 +74,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           ? moment(existingInvoice.dueDate).format("YYYY-MM-DD")
           : "",
         billFrom: {
-          businessName: existingInvoice.billFrom?.businessName || user?.businessName || "",
-          email: existingInvoice.billFrom?.email || user?.email || "",
-          address: existingInvoice.billFrom?.address || user?.address || "",
-          phone: existingInvoice.billFrom?.phone || user?.phone || "",
+          businessName: fixedBusinessInfo.businessName, // Fixed
+          email: fixedBusinessInfo.email, // Fixed
+          address: existingInvoice.billFrom?.address || user?.address || "", // User editable
+          phone: fixedBusinessInfo.phone, // Fixed
         },
         billTo: {
           clientName: existingInvoice.billTo?.clientName || "",
@@ -90,7 +99,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           );
 
           const invoices = response.data?.data || [];
-          let maxNum = 1000;
+          let maxNum = 0; // Changed from 1000 to 0 to start from 1
 
           invoices.forEach((inv) => {
             const match = inv.invoiceNumber?.match(/INV-(\d+)/);
@@ -100,7 +109,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             }
           });
 
-          const newInvoiceNumber = `INV-${String(maxNum + 1).padStart(4, "0")}`;
+          const newInvoiceNumber = `INV-${String(maxNum + 1).padStart(1, "0")}`; // Changed to start from 1
 
           setFormData((prev) => ({
             ...prev,
@@ -109,7 +118,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         } catch (error) {
           setFormData((prev) => ({
             ...prev,
-            invoiceNumber: `INV-1001`,
+            invoiceNumber: `INV-1`, // Start from INV-1 on error
           }));
         } finally {
           setIsGeneratingNumber(false);
@@ -145,6 +154,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
 
   const handleInputChange = (e, section, index) => {
     const { name, value } = e.target;
+    
+    // Prevent editing fixed fields in billFrom except address
+    if (section === "billFrom" && name !== "address") {
+      return; // Don't allow changes to fixed fields
+    }
+    
     if (section) {
       setFormData((prev) => ({
         ...prev,
@@ -258,10 +273,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         invoiceDate: formData.invoiceDate || new Date().toISOString().split("T")[0],
         dueDate: formData.dueDate || new Date().toISOString().split("T")[0],
         billFrom: {
-          businessName: formData.billFrom?.businessName || "",
-          email: formData.billFrom?.email || "",
-          address: formData.billFrom?.address || "",
-          phone: formData.billFrom?.phone || ""
+          businessName: fixedBusinessInfo.businessName, // Fixed
+          email: fixedBusinessInfo.email, // Fixed
+          address: formData.billFrom?.address || "", // User filled
+          phone: fixedBusinessInfo.phone, // Fixed
         },
         billTo: {
           clientName: formData.billTo?.clientName || "",
@@ -349,17 +364,20 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           <InputField
             label="Business Name"
             name="businessName"
-            value={formData.billFrom?.businessName || ""}
-            onChange={(e) => handleInputChange(e, "billFrom")}
-            required
+            value={fixedBusinessInfo.businessName}
+            readOnly
+            disabled
+            className="bg-slate-50 cursor-not-allowed"
           />
 
           <InputField
             label="Email"
             name="email"
             type="email"
-            value={formData.billFrom?.email || ""}
-            onChange={(e) => handleInputChange(e, "billFrom")}
+            value={fixedBusinessInfo.email}
+            readOnly
+            disabled
+            className="bg-slate-50 cursor-not-allowed"
           />
 
           <InputField
@@ -367,13 +385,17 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             name="address"
             value={formData.billFrom?.address || ""}
             onChange={(e) => handleInputChange(e, "billFrom")}
+            placeholder="Enter your business address"
+            required
           />
 
           <InputField
             label="Phone"
             name="phone"
-            value={formData.billFrom?.phone || ""}
-            onChange={(e) => handleInputChange(e, "billFrom")}
+            value={fixedBusinessInfo.phone}
+            readOnly
+            disabled
+            className="bg-slate-50 cursor-not-allowed"
           />
         </div>
 
