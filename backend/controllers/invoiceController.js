@@ -10,13 +10,11 @@ exports.createInvoice = async (req, res) => {
     const {
       invoiceNumber,
       invoiceDate,
-      dueDate,
       billFrom,
       billTo,
       items,
       notes,
-      paymentTerms,
-      paymentMode = "Cash", // New: default payment mode
+      paymentMode = "Cash",
       status = "Pending",
       invoiceDiscount = 0,
     } = req.body;
@@ -47,21 +45,30 @@ exports.createInvoice = async (req, res) => {
     
     const total = subtotal - discountTotal;
 
+    // Fixed billFrom information
+    const fixedBillFrom = {
+      businessName: "Cotton Stock Kids Wear",
+      address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
+      email: "cottonstockkidswear@gmail.com",
+      phone: "9892613808"
+    };
+
     const invoice = new Invoice({
       user: user._id || user.id,
       invoiceNumber,
       invoiceDate: invoiceDate || new Date(),
-      dueDate,
-      billFrom,
-      billTo,
+      billFrom: fixedBillFrom, // Use fixed billFrom
+      billTo: {
+        clientName: billTo?.clientName || "",
+        phone: billTo?.phone || ""
+      },
       items: items.map(item => ({
         ...item,
         taxPercent: item.discountPercent || 0, // For backward compatibility
         discountPercent: item.discountPercent || 0
       })),
       notes,
-      paymentTerms: paymentTerms || "Net 15",
-      paymentMode: paymentMode || "Cash", // Include payment mode
+      paymentMode: paymentMode || "Cash",
       status: status || "Pending",
       invoiceDiscount: invoiceDiscount || 0,
       subtotal,
@@ -168,12 +175,10 @@ exports.updateInvoice = async (req, res) => {
     const {
       invoiceNumber,
       invoiceDate,
-      dueDate,
       billFrom,
       billTo,
       items,
       notes,
-      paymentTerms,
       paymentMode,
       status,
       invoiceDiscount = 0,
@@ -222,22 +227,31 @@ exports.updateInvoice = async (req, res) => {
 
     const total = subtotal - discountTotal;
 
+    // Fixed billFrom information
+    const fixedBillFrom = {
+      businessName: "Cotton Stock Kids Wear",
+      address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
+      email: "cottonstockkidswear@gmail.com",
+      phone: "9892613808"
+    };
+
     const updatedInvoice = await Invoice.findByIdAndUpdate(
       req.params.id,
       {
         invoiceNumber: invoiceNumber || existingInvoice.invoiceNumber,
         invoiceDate: invoiceDate || existingInvoice.invoiceDate,
-        dueDate: dueDate || existingInvoice.dueDate,
-        billFrom: billFrom || existingInvoice.billFrom,
-        billTo: billTo || existingInvoice.billTo,
+        billFrom: fixedBillFrom, // Always use fixed billFrom
+        billTo: {
+          clientName: billTo?.clientName || existingInvoice.billTo?.clientName || "",
+          phone: billTo?.phone || existingInvoice.billTo?.phone || ""
+        },
         items: items ? items.map(item => ({
           ...item,
           taxPercent: item.discountPercent || 0, // For backward compatibility
           discountPercent: item.discountPercent || 0
         })) : existingInvoice.items,
         notes: notes !== undefined ? notes : existingInvoice.notes,
-        paymentTerms: paymentTerms || existingInvoice.paymentTerms,
-        paymentMode: paymentMode || existingInvoice.paymentMode || "Cash", // Include payment mode
+        paymentMode: paymentMode || existingInvoice.paymentMode || "Cash",
         status: status || existingInvoice.status,
         invoiceDiscount: invoiceDiscount || existingInvoice.invoiceDiscount || 0,
         subtotal,

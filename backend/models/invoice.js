@@ -27,9 +27,9 @@ const invoiceSchema = new mongoose.Schema(
       default: Date.now,
     },
 
+    // Due date optional karo (required hataya)
     dueDate: {
       type: Date,
-      required: true,
     },
 
     billFrom: {
@@ -39,10 +39,9 @@ const invoiceSchema = new mongoose.Schema(
       phone: String,
     },
     
+    // BillTo simplify karo (sirf clientName aur phone)
     billTo: {
       clientName: String,
-      email: String,
-      address: String,
       phone: String,
     },
     
@@ -52,12 +51,12 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
     },
 
+    // Payment terms optional karo
     paymentTerms: {
       type: String,
-      default: "Net 15",
     },
 
-    paymentMode: {  // New field
+    paymentMode: {
       type: String,
       enum: ["Cash", "Online", "Cheque", "Card", "UPI", "Bank Transfer"],
       default: "Cash",
@@ -65,7 +64,7 @@ const invoiceSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Paid", "Pending", "Unpaid", "Overdue"],
+      enum: ["Pending", "Paid", "Overdue", "Cancelled"],
       default: "Pending",
     },
 

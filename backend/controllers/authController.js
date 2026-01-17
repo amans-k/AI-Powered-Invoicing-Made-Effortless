@@ -15,7 +15,7 @@ const formatUserResponse = (user) => {
     name: user.name,
     email: user.email,
     businessName: user.businessName || "Cotton Stock Kids Wear",
-    businessEmail: user.businessEmail || "cottonstockkidswear27@gmail.com",
+    businessEmail: user.businessEmail || "cottonstockkidswear@gmail.com",
     businessPhone: user.businessPhone || "9892613808",
     address: user.address || "",
     phone: user.phone || "",

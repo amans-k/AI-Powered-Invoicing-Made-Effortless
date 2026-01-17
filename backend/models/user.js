@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     
     businessEmail: {
       type: String,
-      default: "cottonstockkidswear27@gmail.com", // Fixed business email
+      default: "cottonstockkidswear@gmail.com", // Fixed business email
     },
     
     businessPhone: {
@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
     
     address: { 
       type: String, 
-      default: "", // User will fill this
+      default: "Shop no M-1832 (2P) ground floor gandhi bazaar Chembur colony , chembur 400074", // User will fill this
     },
     
     // Personal phone (optional)
