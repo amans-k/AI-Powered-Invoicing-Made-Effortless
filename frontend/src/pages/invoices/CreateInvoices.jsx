@@ -21,33 +21,49 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
   // Fixed business information
   const fixedBusinessInfo = {
     businessName: "Cotton Stock Kids Wear",
-    email: "cottonstockkidswear27@gmail.com",
+    email: "cottonstockkidswear@gmail.com",
     phone: "9892613808",
-    // Address will be filled by user
-    address: ""
+    address: "Shop no M-1832 (2P) ground floor gandhi bazaar Chembur colony , chembur 400074" // Added address
   };
+
+  // Predefined items for dropdown
+  const predefinedItems = [
+    "Boys T-shirt",
+    "Boys Shorts",
+    "Boys Denim Shorts",
+    "Boys IMP",
+    "Boys Jeans",
+    "Boys Shirt",
+    "Girls Jeans",
+    "Girls Shirt",
+    "Girls IMP",
+    "Girls Top",
+    "Girls Leggings",
+    "Girls Shorts",
+    "Doreme",
+    "Girls Fancy Tshirt",
+    "Girls Denim Shorts",
+    "Others"
+  ];
 
   // Initial form state
   const [formData, setFormData] = useState({
     invoiceNumber: "",
     invoiceDate: new Date().toISOString().split("T")[0],
-    dueDate: "",
+    dueDate: "", // Removed due date requirement
     billFrom: {
       businessName: fixedBusinessInfo.businessName,
       email: fixedBusinessInfo.email,
-      address: user?.address || "", // User will fill address
+      address: fixedBusinessInfo.address, // Fixed address
       phone: fixedBusinessInfo.phone,
     },
     billTo: {
-      clientName: "",
-      email: "",
-      address: "",
-      phone: "",
+      clientName: "", // Only client name
+      phone: "", // Only client phone
     },
-    items: [{ name: "", quantity: 1, unitPrice: 0, discountPercent: 0 }],
+    items: [{ name: "Boys T-shirt", quantity: 1, unitPrice: 0, discountPercent: 0 }], // Default item
     notes: "",
-    paymentTerms: "Net 15",
-    paymentMode: "Cash", // New: Payment mode field
+    paymentMode: "Cash",
     status: "Pending",
     invoiceDiscount: 0,
   });
@@ -59,12 +75,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     if (existingInvoice) {
       const formattedItems = existingInvoice.items && Array.isArray(existingInvoice.items) 
         ? existingInvoice.items.map(item => ({
-            name: item.name || "",
+            name: item.name || "Boys T-shirt",
             quantity: item.quantity || 1,
             unitPrice: item.unitPrice || 0,
             discountPercent: item.discountPercent || item.taxPercent || 0,
           }))
-        : [{ name: "", quantity: 1, unitPrice: 0, discountPercent: 0 }];
+        : [{ name: "Boys T-shirt", quantity: 1, unitPrice: 0, discountPercent: 0 }];
 
       setFormData({
         ...existingInvoice,
@@ -72,26 +88,21 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         invoiceDate: existingInvoice.invoiceDate 
           ? moment(existingInvoice.invoiceDate).format("YYYY-MM-DD")
           : new Date().toISOString().split("T")[0],
-        dueDate: existingInvoice.dueDate 
-          ? moment(existingInvoice.dueDate).format("YYYY-MM-DD")
-          : "",
+        dueDate: "", // Empty due date
         billFrom: {
           businessName: fixedBusinessInfo.businessName,
           email: fixedBusinessInfo.email,
-          address: existingInvoice.billFrom?.address || user?.address || "",
+          address: fixedBusinessInfo.address, // Fixed address
           phone: fixedBusinessInfo.phone,
         },
         billTo: {
           clientName: existingInvoice.billTo?.clientName || "",
-          email: existingInvoice.billTo?.email || "",
-          address: existingInvoice.billTo?.address || "",
-          phone: existingInvoice.billTo?.phone || "",
+          phone: existingInvoice.billTo?.phone || "", // Only phone
         },
         items: formattedItems,
         invoiceDiscount: existingInvoice.invoiceDiscount || 0,
-        paymentMode: existingInvoice.paymentMode || "Cash", // Get existing payment mode
+        paymentMode: existingInvoice.paymentMode || "Cash",
         notes: existingInvoice.notes || "",
-        paymentTerms: existingInvoice.paymentTerms || "Net 15",
         status: existingInvoice.status || "Pending",
       });
     } else {
@@ -140,13 +151,11 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         ...prev,
         billTo: {
           clientName: aiData.clientName || "",
-          email: aiData.email || "",
-          address: aiData.address || "",
-          phone: aiData.phone || "",
+          phone: aiData.phone || "", // Only phone from AI data
         },
         items: aiData.items && Array.isArray(aiData.items) 
           ? aiData.items.map(item => ({
-              name: item.name || "",
+              name: item.name || "Boys T-shirt",
               quantity: item.quantity || 1,
               unitPrice: item.unitPrice || 0,
               discountPercent: item.discountPercent || item.taxPercent || 0
@@ -159,7 +168,8 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
   const handleInputChange = (e, section, index) => {
     const { name, value } = e.target;
     
-    if (section === "billFrom" && name !== "address") {
+    // All billFrom fields are read-only now
+    if (section === "billFrom") {
       return;
     }
     
@@ -182,7 +192,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       ...formData,
       items: [
         ...(formData.items || []),
-        { name: "", quantity: 1, unitPrice: 0, discountPercent: 0 },
+        { name: "Boys T-shirt", quantity: 1, unitPrice: 0, discountPercent: 0 },
       ],
     });
   };
@@ -251,7 +261,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       );
       
       if (validItems.length === 0) {
-        toast.error("Please add at least one item with a name");
+        toast.error("Please add at least one item");
         setLoading(false);
         return;
       }
@@ -262,7 +272,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         const totalAfterDiscount = itemTotal - discountAmount;
         
         return {
-          name: item.name || "",
+          name: item.name || "Boys T-shirt",
           quantity: Number(item.quantity) || 0,
           unitPrice: Number(item.unitPrice) || 0,
           discountPercent: Number(item.discountPercent) || 0,
@@ -275,24 +285,21 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       const finalFormData = {
         invoiceNumber: formData.invoiceNumber || "",
         invoiceDate: formData.invoiceDate || new Date().toISOString().split("T")[0],
-        dueDate: formData.dueDate || new Date().toISOString().split("T")[0],
+        dueDate: formData.dueDate || "", // Optional due date
         billFrom: {
           businessName: fixedBusinessInfo.businessName,
           email: fixedBusinessInfo.email,
-          address: formData.billFrom?.address || "",
+          address: fixedBusinessInfo.address,
           phone: fixedBusinessInfo.phone,
         },
         billTo: {
           clientName: formData.billTo?.clientName || "",
-          email: formData.billTo?.email || "",
-          address: formData.billTo?.address || "",
           phone: formData.billTo?.phone || ""
         },
         items: itemsForSubmission,
         invoiceDiscount: Number(formData.invoiceDiscount) || 0,
-        paymentMode: formData.paymentMode || "Cash", // Include payment mode
+        paymentMode: formData.paymentMode || "Cash",
         notes: formData.notes || "",
-        paymentTerms: formData.paymentTerms || "Net 15",
         status: formData.status || "Pending",
         subtotal: finalTotals.subtotal,
         discountTotal: finalTotals.totalDiscount,
@@ -328,9 +335,9 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         </Button>
       </div>
 
-      {/* Invoice Details */}
+      {/* Invoice Details - Simplified */}
       <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputField
             label="Invoice Number"
             name="invoiceNumber"
@@ -349,20 +356,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer"
             required
           />
-
-          <InputField
-            label="Due Date"
-            type="date"
-            name="dueDate"
-            value={formData.dueDate || ""}
-            onChange={handleInputChange}
-            className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-            required
-          />
         </div>
       </div>
 
-      {/* Bill From & Bill To */}
+      {/* Bill From & Bill To - Simplified */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200 space-y-4">
           <h3 className="text-lg font-semibold text-slate-900 mb-2">Bill From</h3>
@@ -377,6 +374,15 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           />
 
           <InputField
+            label="Address"
+            name="address"
+            value={fixedBusinessInfo.address}
+            readOnly
+            disabled
+            className="bg-slate-50 cursor-not-allowed"
+          />
+
+          <InputField
             label="Email"
             name="email"
             type="email"
@@ -384,15 +390,6 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             readOnly
             disabled
             className="bg-slate-50 cursor-not-allowed"
-          />
-
-          <InputField
-            label="Address"
-            name="address"
-            value={formData.billFrom?.address || ""}
-            onChange={(e) => handleInputChange(e, "billFrom")}
-            placeholder="Enter your business address"
-            required
           />
 
           <InputField
@@ -413,22 +410,8 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             name="clientName"
             value={formData.billTo?.clientName || ""}
             onChange={(e) => handleInputChange(e, "billTo")}
+            placeholder="Enter client name"
             required
-          />
-
-          <InputField
-            label="Email"
-            name="email"
-            type="email"
-            value={formData.billTo?.email || ""}
-            onChange={(e) => handleInputChange(e, "billTo")}
-          />
-
-          <InputField
-            label="Client Address"
-            name="address"
-            value={formData.billTo?.address || ""}
-            onChange={(e) => handleInputChange(e, "billTo")}
           />
 
           <InputField
@@ -436,11 +419,13 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             name="phone"
             value={formData.billTo?.phone || ""}
             onChange={(e) => handleInputChange(e, "billTo")}
+            placeholder="Enter client phone number"
+            required
           />
         </div>
       </div>
 
-      {/* Items Table */}
+      {/* Items Table with Dropdown */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm shadow-gray-100 overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-slate-200 bg-slate-50">
           <h3 className="text-lg font-semibold text-slate-900">Items</h3>
@@ -461,15 +446,19 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
               {(formData.items || []).map((item, index) => (
                 <tr key={index} className="hover:bg-slate-50">
                   <td className="px-2 sm:px-6 py-4">
-                    <input 
-                      type="text" 
-                      name="name" 
-                      value={item.name || ""} 
-                      onChange={(e) => handleItemChange(e, index)} 
-                      className="w-full h-10 px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                      placeholder="Item Name" 
+                    <select
+                      name="name"
+                      value={item.name || "Boys T-shirt"}
+                      onChange={(e) => handleItemChange(e, index)}
+                      className="w-full h-10 px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
-                    />
+                    >
+                      {predefinedItems.map((itemName) => (
+                        <option key={itemName} value={itemName}>
+                          {itemName}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="px-2 sm:px-6 py-4">
                     <input 
@@ -544,13 +533,14 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       {/* Notes & Totals & Payment */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200 space-y-4">
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">Notes & Terms</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">Notes & Payment</h3>
           <TextareaField
             name="notes"
             label="Notes"
             value={formData.notes || ""}
             onChange={handleInputChange}
             rows={3}
+            placeholder="Add any additional notes here..."
           />
           
           {/* Invoice-level Discount */}
@@ -578,15 +568,6 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             value={formData.paymentMode || "Cash"}
             onChange={handleInputChange}
             options={["Cash", "Online", "Cheque", "Card", "UPI", "Bank Transfer"]}
-            required
-          />
-
-          <SelectField
-            label="Payment Terms"
-            name="paymentTerms"
-            value={formData.paymentTerms || ""}
-            onChange={handleInputChange}
-            options={["Net 15", "Net 30", "Net 60", "Due on receipt"]}
             required
           />
 

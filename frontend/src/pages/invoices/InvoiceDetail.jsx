@@ -179,20 +179,19 @@ const InvoiceDetail = () => {
             <div>
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Bill From</h3>
               <p className="font-semibold text-slate-800">Cotton Stock Kids Wear</p>
-              <p className="text-slate-600">{invoice.billFrom?.address || 'Address not provided'}</p>
-              <p className="text-slate-600">cottonstockkidswear27@gmail.com</p>
+              <p className="text-slate-600">Shop no M-1832 (2P) ground floor gandhi bazaar</p>
+              <p className="text-slate-600">Chembur colony, chembur 400074</p>
+              <p className="text-slate-600">cottonstockkidswear@gmail.com</p>
               <p className="text-slate-600">9892613808</p>
             </div>
             <div className="sm:text-right">
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Bill To</h3>
               <p className="font-semibold text-slate-800">{invoice.billTo?.clientName}</p>
-              <p className="text-slate-600">{invoice.billTo?.address}</p>
-              <p className="text-slate-600">{invoice.billTo?.email}</p>
               <p className="text-slate-600">{invoice.billTo?.phone}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
             <div>
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Invoice Date</h3>
               <p className="font-medium text-slate-800">
@@ -200,18 +199,12 @@ const InvoiceDetail = () => {
               </p>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Due Date</h3>
-              <p className="font-medium text-slate-800">
-                {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Payment Terms</h3>
-              <p className="font-medium text-slate-800">{invoice.paymentTerms || 'Net 15'}</p>
-            </div>
-            <div>
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Payment Mode</h3>
               <p className="font-medium text-slate-800">{invoice.paymentMode || 'Cash'}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Status</h3>
+              <p className="font-medium text-slate-800">{invoice.status || 'Pending'}</p>
             </div>
           </div>
 
@@ -219,7 +212,7 @@ const InvoiceDetail = () => {
             <table className="w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
+                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Item</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Unit Price</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Disc %</th>
@@ -300,14 +293,6 @@ const InvoiceDetail = () => {
                 <div>
                   <p className="text-sm font-medium text-slate-700">Reference/Transaction ID:</p>
                   <p className="text-slate-600">{invoice.paymentReference}</p>
-                </div>
-              )}
-              {invoice.paymentDate && (
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Payment Date:</p>
-                  <p className="text-slate-600">
-                    {new Date(invoice.paymentDate).toLocaleDateString()}
-                  </p>
                 </div>
               )}
             </div>
