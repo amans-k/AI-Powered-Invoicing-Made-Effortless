@@ -47,8 +47,9 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     items: [{ name: "", quantity: 1, unitPrice: 0, discountPercent: 0 }],
     notes: "",
     paymentTerms: "Net 15",
+    paymentMode: "Cash", // New: Payment mode field
     status: "Pending",
-    invoiceDiscount: 0, // New field for invoice-level discount
+    invoiceDiscount: 0,
   });
 
   const [loading, setLoading] = useState(false);
@@ -61,7 +62,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             name: item.name || "",
             quantity: item.quantity || 1,
             unitPrice: item.unitPrice || 0,
-            discountPercent: item.discountPercent || item.taxPercent || 0, // Handle both old and new
+            discountPercent: item.discountPercent || item.taxPercent || 0,
           }))
         : [{ name: "", quantity: 1, unitPrice: 0, discountPercent: 0 }];
 
@@ -75,10 +76,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           ? moment(existingInvoice.dueDate).format("YYYY-MM-DD")
           : "",
         billFrom: {
-          businessName: fixedBusinessInfo.businessName, // Fixed
-          email: fixedBusinessInfo.email, // Fixed
-          address: existingInvoice.billFrom?.address || user?.address || "", // User editable
-          phone: fixedBusinessInfo.phone, // Fixed
+          businessName: fixedBusinessInfo.businessName,
+          email: fixedBusinessInfo.email,
+          address: existingInvoice.billFrom?.address || user?.address || "",
+          phone: fixedBusinessInfo.phone,
         },
         billTo: {
           clientName: existingInvoice.billTo?.clientName || "",
@@ -88,6 +89,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         },
         items: formattedItems,
         invoiceDiscount: existingInvoice.invoiceDiscount || 0,
+        paymentMode: existingInvoice.paymentMode || "Cash", // Get existing payment mode
         notes: existingInvoice.notes || "",
         paymentTerms: existingInvoice.paymentTerms || "Net 15",
         status: existingInvoice.status || "Pending",
@@ -101,7 +103,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           );
 
           const invoices = response.data?.data || [];
-          let maxNum = 0; // Changed from 1000 to 0 to start from 1
+          let maxNum = 0;
 
           invoices.forEach((inv) => {
             const match = inv.invoiceNumber?.match(/INV-(\d+)/);
@@ -111,7 +113,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             }
           });
 
-          const newInvoiceNumber = `INV-${String(maxNum + 1).padStart(1, "0")}`; // Changed to start from 1
+          const newInvoiceNumber = `INV-${String(maxNum + 1).padStart(1, "0")}`;
 
           setFormData((prev) => ({
             ...prev,
@@ -120,7 +122,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         } catch (error) {
           setFormData((prev) => ({
             ...prev,
-            invoiceNumber: `INV-1`, // Start from INV-1 on error
+            invoiceNumber: `INV-1`,
           }));
         } finally {
           setIsGeneratingNumber(false);
@@ -157,9 +159,8 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
   const handleInputChange = (e, section, index) => {
     const { name, value } = e.target;
     
-    // Prevent editing fixed fields in billFrom except address
     if (section === "billFrom" && name !== "address") {
-      return; // Don't allow changes to fixed fields
+      return;
     }
     
     if (section) {
@@ -202,13 +203,11 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
         subtotal += itemTotal;
         
-        // Calculate item-level discount
         const itemDiscount = itemTotal * ((item.discountPercent || 0) / 100);
         itemDiscountTotal += itemDiscount;
       });
     }
 
-    // Calculate invoice-level discount (on subtotal after item discounts)
     const discountedSubtotal = subtotal - itemDiscountTotal;
     const invoiceDiscountAmount = discountedSubtotal * ((formData.invoiceDiscount || 0) / 100);
     totalDiscount = itemDiscountTotal + invoiceDiscountAmount;
@@ -247,7 +246,6 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     setLoading(true);
 
     try {
-      // Validate at least one item has a name
       const validItems = (formData.items || []).filter(item => 
         item.name && item.name.trim() !== ""
       );
@@ -258,7 +256,6 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         return;
       }
 
-      // Prepare items WITH total field (backend requirement)
       const itemsForSubmission = validItems.map(item => {
         const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
         const discountAmount = itemTotal * ((item.discountPercent || 0) / 100);
@@ -269,11 +266,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           quantity: Number(item.quantity) || 0,
           unitPrice: Number(item.unitPrice) || 0,
           discountPercent: Number(item.discountPercent) || 0,
-          total: Number(totalAfterDiscount.toFixed(2)) // ✅ Required by backend
+          total: Number(totalAfterDiscount.toFixed(2))
         };
       });
 
-      // Calculate final totals
       const finalTotals = calculateTotals();
 
       const finalFormData = {
@@ -281,10 +277,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         invoiceDate: formData.invoiceDate || new Date().toISOString().split("T")[0],
         dueDate: formData.dueDate || new Date().toISOString().split("T")[0],
         billFrom: {
-          businessName: fixedBusinessInfo.businessName, // Fixed
-          email: fixedBusinessInfo.email, // Fixed
-          address: formData.billFrom?.address || "", // User filled
-          phone: fixedBusinessInfo.phone, // Fixed
+          businessName: fixedBusinessInfo.businessName,
+          email: fixedBusinessInfo.email,
+          address: formData.billFrom?.address || "",
+          phone: fixedBusinessInfo.phone,
         },
         billTo: {
           clientName: formData.billTo?.clientName || "",
@@ -294,6 +290,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         },
         items: itemsForSubmission,
         invoiceDiscount: Number(formData.invoiceDiscount) || 0,
+        paymentMode: formData.paymentMode || "Cash", // Include payment mode
         notes: formData.notes || "",
         paymentTerms: formData.paymentTerms || "Net 15",
         status: formData.status || "Pending",
@@ -544,7 +541,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         </div>
       </div>
 
-      {/* Notes & Totals */}
+      {/* Notes & Totals & Payment */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200 space-y-4">
           <h3 className="text-lg font-semibold text-slate-900 mb-2">Notes & Terms</h3>
@@ -553,7 +550,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             label="Notes"
             value={formData.notes || ""}
             onChange={handleInputChange}
-            rows={4}
+            rows={3}
           />
           
           {/* Invoice-level Discount */}
@@ -576,6 +573,15 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           </div>
 
           <SelectField
+            label="Payment Mode"
+            name="paymentMode"
+            value={formData.paymentMode || "Cash"}
+            onChange={handleInputChange}
+            options={["Cash", "Online", "Cheque", "Card", "UPI", "Bank Transfer"]}
+            required
+          />
+
+          <SelectField
             label="Payment Terms"
             name="paymentTerms"
             value={formData.paymentTerms || ""}
@@ -583,6 +589,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             options={["Net 15", "Net 30", "Net 60", "Due on receipt"]}
             required
           />
+
           <SelectField
             label="Status"
             name="status"
@@ -621,6 +628,14 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             <div className="flex justify-between text-lg font-semibold text-slate-800 border-t border-slate-200 pt-3 mt-2">
               <p>Final Total:</p>
               <p>₹{totals.finalTotal.toFixed(2)}</p>
+            </div>
+
+            {/* Payment Mode Display */}
+            <div className="pt-4 mt-4 border-t border-slate-200">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-slate-700">Payment Mode:</span>
+                <span className="text-sm font-semibold text-slate-900">{formData.paymentMode || "Cash"}</span>
+              </div>
             </div>
           </div>
         </div>

@@ -24,7 +24,6 @@ const InvoiceDetail = () => {
         const response = await axiosInstance.get(API_PATHS.INVOICE.GET_INVOICE_BY_ID(id));
         
         console.log("✅ Invoice fetched:", response.data);
-        // ✅ CORRECT: Extract data from response wrapper
         setInvoice(response.data.data);
         
       } catch (error) {
@@ -52,7 +51,6 @@ const InvoiceDetail = () => {
       toast.success('Invoice updated successfully!');
       setIsEditing(false);
       
-      // ✅ ✅ ✅ CRITICAL FIX: Extract data from response wrapper
       setInvoice(response.data.data);
       
     } catch (error) {
@@ -70,6 +68,18 @@ const InvoiceDetail = () => {
     console.log("📝 Editing invoice:", invoice);
     console.log("🛒 Invoice items:", invoice?.items);
     setIsEditing(true);
+  };
+
+  // Calculate item discount for display
+  const getItemDiscount = (item) => {
+    const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
+    const discountPercent = item.discountPercent || item.taxPercent || 0;
+    const discountAmount = itemTotal * (discountPercent / 100);
+    return {
+      percent: discountPercent,
+      amount: discountAmount,
+      totalAfterDiscount: itemTotal - discountAmount
+    };
   };
 
   if (loading) {
@@ -105,7 +115,6 @@ const InvoiceDetail = () => {
         invoiceId={id} 
       />
       
-      {/* Hide buttons when printing */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 print:hidden">
         <h1 className="text-2xl font-semibold text-slate-900 mb-4 sm:mb-0">
           Invoice <span className="font-mono text-slate-500">
@@ -183,7 +192,7 @@ const InvoiceDetail = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-8">
             <div>
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Invoice Date</h3>
               <p className="font-medium text-slate-800">
@@ -200,6 +209,10 @@ const InvoiceDetail = () => {
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Payment Terms</h3>
               <p className="font-medium text-slate-800">{invoice.paymentTerms || 'Net 15'}</p>
             </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Payment Mode</h3>
+              <p className="font-medium text-slate-800">{invoice.paymentMode || 'Cash'}</p>
+            </div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
@@ -209,22 +222,29 @@ const InvoiceDetail = () => {
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Unit Price</th>
+                  <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Disc %</th>
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {invoice.items?.map((item, index) => (
-                  <tr key={index} className="border-b border-slate-100">
-                    <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">{item.name || 'Item'}</td>
-                    <td className="px-4 sm:px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity || 0}</td>
-                    <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-600">
-                      ₹{item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'}
-                    </td>
-                    <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-900">
-                      ₹{item.total ? parseFloat(item.total).toFixed(2) : '0.00'}
-                    </td>
-                  </tr>
-                ))}
+                {invoice.items?.map((item, index) => {
+                  const discountInfo = getItemDiscount(item);
+                  return (
+                    <tr key={index} className="border-b border-slate-100">
+                      <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">{item.name || 'Item'}</td>
+                      <td className="px-4 sm:px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity || 0}</td>
+                      <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-600">
+                        ₹{item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-center text-sm font-medium text-slate-600">
+                        {discountInfo.percent > 0 ? `${discountInfo.percent}%` : '-'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-900">
+                        ₹{item.total ? parseFloat(item.total).toFixed(2) : '0.00'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -235,10 +255,25 @@ const InvoiceDetail = () => {
                 <span>Subtotal</span>
                 <span>₹{invoice.subtotal ? parseFloat(invoice.subtotal).toFixed(2) : '0.00'}</span>
               </div>
-              <div className="flex justify-between text-sm text-slate-600">
-                <span>Tax</span>
-                <span>₹{invoice.taxTotal ? parseFloat(invoice.taxTotal).toFixed(2) : '0.00'}</span>
-              </div>
+              
+              {/* Item Discounts */}
+              {(invoice.discountTotal || invoice.taxTotal) > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Discount</span>
+                    <span>-₹{(invoice.discountTotal || invoice.taxTotal || 0).toFixed(2)}</span>
+                  </div>
+                  
+                  {/* Invoice-level discount if applied */}
+                  {invoice.invoiceDiscount > 0 && (
+                    <div className="flex justify-between text-xs text-red-500 pl-4">
+                      <span>Invoice Discount ({invoice.invoiceDiscount}%)</span>
+                      <span>-₹{(invoice.subtotal * (invoice.invoiceDiscount / 100)).toFixed(2)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
               <div className="flex justify-between font-semibold text-lg text-slate-900 border-t border-slate-200 pt-3 mt-3">
                 <span>Total</span>
                 <span>₹{invoice.total ? parseFloat(invoice.total).toFixed(2) : '0.00'}</span>
@@ -253,7 +288,31 @@ const InvoiceDetail = () => {
             </div>
           )}
 
-          {/* Add this div to hide AI branding in print */}
+          {/* Payment Details Section */}
+          <div className="mt-8 pt-8 border-t border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Payment Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Payment Mode:</p>
+                <p className="text-slate-600">{invoice.paymentMode || 'Cash'}</p>
+              </div>
+              {invoice.paymentReference && (
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Reference/Transaction ID:</p>
+                  <p className="text-slate-600">{invoice.paymentReference}</p>
+                </div>
+              )}
+              {invoice.paymentDate && (
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Payment Date:</p>
+                  <p className="text-slate-600">
+                    {new Date(invoice.paymentDate).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="mt-8 pt-8 border-t border-slate-200 print:hidden text-center text-xs text-slate-400">
             <p>Generated by Invoice Management System</p>
           </div>
@@ -294,17 +353,14 @@ const InvoiceDetail = () => {
               margin: 0;
             }
             
-            /* Hide print button in print */
             .print\\:hidden {
               display: none !important;
             }
             
-            /* Show only essential content */
             .print\\:text-left {
               text-align: left !important;
             }
             
-            /* Remove unnecessary spacing */
             .bg-slate-50 {
               background-color: transparent !important;
             }
