@@ -70,18 +70,6 @@ const InvoiceDetail = () => {
     setIsEditing(true);
   };
 
-  // Calculate item discount for display
-  const getItemDiscount = (item) => {
-    const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
-    const discountPercent = item.discountPercent || item.taxPercent || 0;
-    const discountAmount = itemTotal * (discountPercent / 100);
-    return {
-      percent: discountPercent,
-      amount: discountAmount,
-      totalAfterDiscount: itemTotal - discountAmount
-    };
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -215,13 +203,12 @@ const InvoiceDetail = () => {
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Item</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Unit Price</th>
-                  <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Disc %</th>
+                  {/* DISC % COLUMN REMOVED */}
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {invoice.items?.map((item, index) => {
-                  const discountInfo = getItemDiscount(item);
                   return (
                     <tr key={index} className="border-b border-slate-100">
                       <td className="px-4 sm:px-6 py-4 text-sm font-medium text-slate-900">{item.name || 'Item'}</td>
@@ -229,9 +216,7 @@ const InvoiceDetail = () => {
                       <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-600">
                         ₹{item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'}
                       </td>
-                      <td className="px-4 sm:px-6 py-4 text-center text-sm font-medium text-slate-600">
-                        {discountInfo.percent > 0 ? `${discountInfo.percent}%` : '-'}
-                      </td>
+                      {/* DISC % CELL REMOVED */}
                       <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-900">
                         ₹{item.total ? parseFloat(item.total).toFixed(2) : '0.00'}
                       </td>
@@ -251,20 +236,10 @@ const InvoiceDetail = () => {
               
               {/* Item Discounts */}
               {(invoice.discountTotal || invoice.taxTotal) > 0 && (
-                <>
-                  <div className="flex justify-between text-sm text-red-600">
-                    <span>Discount</span>
-                    <span>-₹{(invoice.discountTotal || invoice.taxTotal || 0).toFixed(2)}</span>
-                  </div>
-                  
-                  {/* Invoice-level discount if applied */}
-                  {invoice.invoiceDiscount > 0 && (
-                    <div className="flex justify-between text-xs text-red-500 pl-4">
-                      <span>Invoice Discount ({invoice.invoiceDiscount}%)</span>
-                      <span>-₹{(invoice.subtotal * (invoice.invoiceDiscount / 100)).toFixed(2)}</span>
-                    </div>
-                  )}
-                </>
+                <div className="flex justify-between text-sm text-red-600">
+                  <span>Discount</span>
+                  <span>-₹{(invoice.discountTotal || invoice.taxTotal || 0).toFixed(2)}</span>
+                </div>
               )}
               
               <div className="flex justify-between font-semibold text-lg text-slate-900 border-t border-slate-200 pt-3 mt-3">
