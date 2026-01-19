@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
-import { Loader2, FileText, DollarSign, Plus } from "lucide-react";
+import { Loader2, FileText, IndianRupee, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import Button from "../../component/ui/Button";
@@ -88,13 +88,13 @@ const Dashboard = () => {
       color: "blue",
     },
     {
-      icon: DollarSign,
+      icon: IndianRupee,  // ✅ Changed from DollarSign
       label: "Total Paid",
       value: `₹${stats.totalPaid.toFixed(2)}`,
       color: "emerald",
     },
     {
-      icon: DollarSign,
+      icon: IndianRupee,  // ✅ Changed from DollarSign
       label: "Total Unpaid",
       value: `₹${stats.totalUnpaid.toFixed(2)}`,
       color: "red",
