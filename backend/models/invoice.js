@@ -27,7 +27,6 @@ const invoiceSchema = new mongoose.Schema(
       default: Date.now,
     },
 
-    // Due date optional karo (required hataya)
     dueDate: {
       type: Date,
     },
@@ -39,7 +38,6 @@ const invoiceSchema = new mongoose.Schema(
       phone: String,
     },
     
-    // BillTo simplify karo (sirf clientName aur phone)
     billTo: {
       clientName: String,
       phone: String,
@@ -51,7 +49,6 @@ const invoiceSchema = new mongoose.Schema(
       type: String,
     },
 
-    // Payment terms optional karo
     paymentTerms: {
       type: String,
     },
@@ -75,5 +72,8 @@ const invoiceSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// ✅ Compound index - same user ke liye invoice number unique hoga
+invoiceSchema.index({ user: 1, invoiceNumber: 1 }, { unique: true });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

@@ -1,5 +1,4 @@
 const express = require("express");
-
 const {
   createInvoice,
   getInvoices,
@@ -12,10 +11,14 @@ const { protect } = require("../middlewares/authMiddleware.js");
 
 const router = express.Router();
 
-router.route("/").post(protect, createInvoice).get(protect, getInvoices);
+router.route("/")
+  .post(protect, createInvoice)
+  .get(protect, getInvoices);
 
-router
-  .route("/:id")
+// REMOVE THIS LINE (temporarily)
+// router.get("/stats", protect, getDashboardStats);
+
+router.route("/:id")
   .get(protect, getInvoiceById)
   .put(protect, updateInvoice)
   .delete(protect, deleteInvoice);
