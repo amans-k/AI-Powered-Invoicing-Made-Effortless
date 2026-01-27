@@ -72,15 +72,38 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
 
   useEffect(() => {
-    const generateInvoiceNumber = () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      
-      // Generate format: INV-YYYYMMDD-XXX
-      const baseNumber = `INV-${year}${month}${day}`;
-      return baseNumber;
+    const generateInvoiceNumber = async () => {
+      setIsGeneratingNumber(true);
+      try {
+        const response = await axiosInstance.get(API_PATHS.INVOICE.GET_ALL_INVOICES);
+        
+        const invoices = response.data?.data || [];
+        let maxNum = 0;
+
+        invoices.forEach((inv) => {
+          // Extract number from INV-1, INV-2, etc.
+          const match = inv.invoiceNumber?.match(/INV-(\d+)/);
+          if (match) {
+            const num = parseInt(match[1]);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+          }
+        });
+
+        const newInvoiceNumber = `INV-${maxNum + 1}`;
+        
+        setFormData((prev) => ({
+          ...prev,
+          invoiceNumber: newInvoiceNumber,
+        }));
+      } catch (error) {
+        console.error("Error generating invoice number:", error);
+        setFormData((prev) => ({
+          ...prev,
+          invoiceNumber: "INV-1",
+        }));
+      } finally {
+        setIsGeneratingNumber(false);
+      }
     };
 
     if (existingInvoice) {
@@ -116,12 +139,8 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         status: existingInvoice.status || "Pending",
       });
     } else {
-      // Set initial invoice number with date
-      const invoiceNumber = generateInvoiceNumber();
-      setFormData((prev) => ({
-        ...prev,
-        invoiceNumber: `${invoiceNumber}-001`, // Default to 001 for new day
-      }));
+      // Generate sequential invoice number
+      generateInvoiceNumber();
     }
   }, [existingInvoice, user]);
 
