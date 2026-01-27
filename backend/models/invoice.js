@@ -4,7 +4,7 @@ const itemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   quantity: { type: Number, required: true },
   unitPrice: { type: Number, required: true },
-  discountPercent: { type: Number, default: 0 },
+  // discountPercent removed as per requirement
   total: { type: Number, required: true },
 });
 
@@ -67,13 +67,14 @@ const invoiceSchema = new mongoose.Schema(
 
     subtotal: Number,
     discountTotal: Number,
-    invoiceDiscount: { type: Number, default: 0 },
+    directAmountReduction: { type: Number, default: 0 }, // New field for direct reduction
+    invoiceDiscount: { type: Number, default: 0 }, // Keep temporarily for old data
     total: Number,
   },
   { timestamps: true }
 );
 
-// ✅ Compound index - same user ke liye invoice number unique hoga
+// ✅ Compound index
 invoiceSchema.index({ user: 1, invoiceNumber: 1 }, { unique: true });
 
 module.exports = mongoose.model("Invoice", invoiceSchema);

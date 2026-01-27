@@ -7,7 +7,7 @@ exports.createInvoice = async (req, res) => {
   try {
     const user = req.user;
 
-    const {
+    let {
       invoiceNumber,
       invoiceDate,
       billFrom,
@@ -16,61 +16,88 @@ exports.createInvoice = async (req, res) => {
       notes,
       paymentMode = "Cash",
       status = "Pending",
-      invoiceDiscount = 0,
+      directAmountReduction = 0,
+      invoiceDiscount = 0, // Keep for backward compatibility
     } = req.body;
+
+    // Auto-migrate: If invoiceDiscount is provided but not directAmountReduction
+    if (invoiceDiscount > 0 && directAmountReduction === 0) {
+      directAmountReduction = invoiceDiscount;
+    }
 
     // Validate required fields
     if (!items || items.length === 0) {
       return res.status(400).json({ message: "At least one item is required" });
     }
 
-    // Calculate totals with discount
+    // Calculate subtotal
     let subtotal = 0;
-    let itemDiscountTotal = 0;
-    let discountTotal = 0;
-
     items.forEach((item) => {
       const itemTotal = item.unitPrice * item.quantity;
       subtotal += itemTotal;
-      
-      // Calculate item-level discount
-      const itemDiscount = itemTotal * ((item.discountPercent || 0) / 100);
-      itemDiscountTotal += itemDiscount;
     });
 
-    // Calculate invoice-level discount (on subtotal after item discounts)
-    const discountedSubtotal = subtotal - itemDiscountTotal;
-    const invoiceDiscountAmount = discountedSubtotal * ((invoiceDiscount || 0) / 100);
-    discountTotal = itemDiscountTotal + invoiceDiscountAmount;
-    
-    const total = subtotal - discountTotal;
+    // Apply direct amount reduction (not percentage)
+    const discountTotal = parseFloat(directAmountReduction) || 0;
+    const total = Math.max(0, subtotal - discountTotal);
 
-    // Fixed billFrom information
+    // Fixed billFrom information with updated phone
     const fixedBillFrom = {
       businessName: "Cotton Stock Kids Wear",
       address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
       email: "cottonstockkidswear@gmail.com",
-      phone: "9892613808"
+      phone: "8591116115" // Updated phone number
     };
+
+    // Generate invoice number with midnight reset
+    const generateInvoiceNumber = async () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      
+      // Find today's last invoice (after midnight)
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0); // Reset at midnight
+      
+      // Find latest invoice from today
+      const latestInvoice = await Invoice.findOne({
+        createdAt: { $gte: todayStart },
+        invoiceNumber: { $regex: `^INV-${year}${month}${day}-` }
+      }).sort({ invoiceNumber: -1 });
+
+      if (latestInvoice) {
+        const lastNum = parseInt(latestInvoice.invoiceNumber.split('-').pop());
+        return `INV-${year}${month}${day}-${String(lastNum + 1).padStart(3, '0')}`;
+      }
+      return `INV-${year}${month}${day}-001`;
+    };
+
+    const finalInvoiceNumber = invoiceNumber || await generateInvoiceNumber();
+
+    // Prepare items for database (with total calculation)
+    const formattedItems = items.map(item => ({
+      name: item.name || item.description || "Item",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: (item.quantity || 0) * (item.unitPrice || 0)
+    }));
 
     const invoice = new Invoice({
       user: user._id || user.id,
-      invoiceNumber,
+      invoiceNumber: finalInvoiceNumber,
       invoiceDate: invoiceDate || new Date(),
       billFrom: fixedBillFrom, // Use fixed billFrom
       billTo: {
         clientName: billTo?.clientName || "",
         phone: billTo?.phone || ""
       },
-      items: items.map(item => ({
-        ...item,
-        taxPercent: item.discountPercent || 0, // For backward compatibility
-        discountPercent: item.discountPercent || 0
-      })),
+      items: formattedItems,
       notes,
       paymentMode: paymentMode || "Cash",
       status: status || "Pending",
-      invoiceDiscount: invoiceDiscount || 0,
+      directAmountReduction: directAmountReduction || 0,
+      invoiceDiscount: invoiceDiscount || 0, // Keep for backward compatibility
       subtotal,
       discountTotal,
       total,
@@ -115,10 +142,22 @@ exports.getInvoices = async (req, res) => {
 
     console.log(`Found ${invoices.length} invoices for user ${req.user.id}`);
 
+    // For backward compatibility: If directAmountReduction is 0 but invoiceDiscount exists, use it
+    const processedInvoices = invoices.map(invoice => {
+      const invoiceObj = invoice.toObject();
+      
+      // If old invoice has invoiceDiscount but not directAmountReduction
+      if (invoiceObj.invoiceDiscount > 0 && invoiceObj.directAmountReduction === 0) {
+        invoiceObj.directAmountReduction = invoiceObj.invoiceDiscount;
+      }
+      
+      return invoiceObj;
+    });
+
     res.json({
       success: true,
       count: invoices.length,
-      data: invoices,
+      data: processedInvoices,
     });
   } catch (error) {
     console.error("Get invoices error:", error);
@@ -153,9 +192,15 @@ exports.getInvoiceById = async (req, res) => {
       });
     }
 
+    // For backward compatibility
+    const invoiceObj = invoice.toObject();
+    if (invoiceObj.invoiceDiscount > 0 && invoiceObj.directAmountReduction === 0) {
+      invoiceObj.directAmountReduction = invoiceObj.invoiceDiscount;
+    }
+
     res.json({
       success: true,
-      data: invoice,
+      data: invoiceObj,
     });
   } catch (error) {
     console.error("Get invoice by ID error:", error);
@@ -172,7 +217,7 @@ exports.getInvoiceById = async (req, res) => {
 // @access Private
 exports.updateInvoice = async (req, res) => {
   try {
-    const {
+    let {
       invoiceNumber,
       invoiceDate,
       billFrom,
@@ -181,8 +226,14 @@ exports.updateInvoice = async (req, res) => {
       notes,
       paymentMode,
       status,
-      invoiceDiscount = 0,
+      directAmountReduction = 0,
+      invoiceDiscount = 0, // Keep for backward compatibility
     } = req.body;
+
+    // Auto-migrate: If invoiceDiscount is provided but not directAmountReduction
+    if (invoiceDiscount > 0 && directAmountReduction === 0) {
+      directAmountReduction = invoiceDiscount;
+    }
 
     // Check if invoice exists and belongs to user
     const existingInvoice = await Invoice.findById(req.params.id);
@@ -200,40 +251,39 @@ exports.updateInvoice = async (req, res) => {
       });
     }
 
-    // Recalculate totals with discount
+    // Recalculate totals
     let subtotal = 0;
-    let itemDiscountTotal = 0;
     let discountTotal = 0;
 
     if (items && items.length > 0) {
       items.forEach((item) => {
         const itemTotal = item.unitPrice * item.quantity;
         subtotal += itemTotal;
-        
-        // Calculate item-level discount
-        const itemDiscount = itemTotal * ((item.discountPercent || 0) / 100);
-        itemDiscountTotal += itemDiscount;
       });
-      
-      // Calculate invoice-level discount
-      const discountedSubtotal = subtotal - itemDiscountTotal;
-      const invoiceDiscountAmount = discountedSubtotal * ((invoiceDiscount || 0) / 100);
-      discountTotal = itemDiscountTotal + invoiceDiscountAmount;
+      discountTotal = parseFloat(directAmountReduction) || 0;
     } else {
       // Use existing values if items not provided
       subtotal = existingInvoice.subtotal;
       discountTotal = existingInvoice.discountTotal || 0;
     }
 
-    const total = subtotal - discountTotal;
+    const total = Math.max(0, subtotal - discountTotal);
 
-    // Fixed billFrom information
+    // Fixed billFrom information with updated phone
     const fixedBillFrom = {
       businessName: "Cotton Stock Kids Wear",
       address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
       email: "cottonstockkidswear@gmail.com",
-      phone: "9892613808"
+      phone: "8591116115" // Updated phone number
     };
+
+    // Prepare items for database
+    const formattedItems = items ? items.map(item => ({
+      name: item.name || item.description || "Item",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: (item.quantity || 0) * (item.unitPrice || 0)
+    })) : existingInvoice.items;
 
     const updatedInvoice = await Invoice.findByIdAndUpdate(
       req.params.id,
@@ -245,15 +295,12 @@ exports.updateInvoice = async (req, res) => {
           clientName: billTo?.clientName || existingInvoice.billTo?.clientName || "",
           phone: billTo?.phone || existingInvoice.billTo?.phone || ""
         },
-        items: items ? items.map(item => ({
-          ...item,
-          taxPercent: item.discountPercent || 0, // For backward compatibility
-          discountPercent: item.discountPercent || 0
-        })) : existingInvoice.items,
+        items: formattedItems,
         notes: notes !== undefined ? notes : existingInvoice.notes,
         paymentMode: paymentMode || existingInvoice.paymentMode || "Cash",
         status: status || existingInvoice.status,
-        invoiceDiscount: invoiceDiscount || existingInvoice.invoiceDiscount || 0,
+        directAmountReduction: directAmountReduction || existingInvoice.directAmountReduction || 0,
+        invoiceDiscount: invoiceDiscount || existingInvoice.invoiceDiscount || 0, // Keep
         subtotal,
         discountTotal,
         total,
