@@ -170,7 +170,7 @@ const InvoiceDetail = () => {
               <p className="text-slate-600">Shop no M-1832 (2P) ground floor gandhi bazaar</p>
               <p className="text-slate-600">Chembur colony, chembur 400074</p>
               <p className="text-slate-600">cottonstockkidswear@gmail.com</p>
-              <p className="text-slate-600">9892613808</p>
+              <p className="text-slate-600">8591116115</p> {/* Updated phone number */}
             </div>
             <div className="sm:text-right">
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Bill To</h3>
@@ -203,7 +203,6 @@ const InvoiceDetail = () => {
                   <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Item</th>
                   <th className="px-4 sm:px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Unit Price</th>
-                  {/* DISC % COLUMN REMOVED */}
                   <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
@@ -216,9 +215,8 @@ const InvoiceDetail = () => {
                       <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-600">
                         ₹{item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'}
                       </td>
-                      {/* DISC % CELL REMOVED */}
                       <td className="px-4 sm:px-6 py-4 text-right text-sm font-medium text-slate-900">
-                        ₹{item.total ? parseFloat(item.total).toFixed(2) : '0.00'}
+                        ₹{((item.quantity || 0) * (item.unitPrice || 0)).toFixed(2)}
                       </td>
                     </tr>
                   );
@@ -234,11 +232,11 @@ const InvoiceDetail = () => {
                 <span>₹{invoice.subtotal ? parseFloat(invoice.subtotal).toFixed(2) : '0.00'}</span>
               </div>
               
-              {/* Item Discounts */}
-              {(invoice.discountTotal || invoice.taxTotal) > 0 && (
+              {/* Direct Amount Reduction */}
+              {(invoice.discountTotal || invoice.directAmountReduction) > 0 && (
                 <div className="flex justify-between text-sm text-red-600">
-                  <span>Discount</span>
-                  <span>-₹{(invoice.discountTotal || invoice.taxTotal || 0).toFixed(2)}</span>
+                  <span>Direct Reduction</span>
+                  <span>-₹{(invoice.discountTotal || invoice.directAmountReduction || 0).toFixed(2)}</span>
                 </div>
               )}
               

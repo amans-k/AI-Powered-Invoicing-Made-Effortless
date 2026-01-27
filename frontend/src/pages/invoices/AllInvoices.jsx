@@ -75,19 +75,23 @@ const AllInvoices = () => {
     fetchInvoices();
   }, []);
 
-  // Daily reset at 12 AM IST
+  // Daily reset at 12 AM IST (midnight)
   useEffect(() => {
     const checkForDailyReset = () => {
-      const now = moment();
-      const istTime = now.utcOffset(330); // IST is UTC+5:30
+      const now = new Date();
+      const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // Convert to IST
       
-      if (istTime.hour() === 0 && istTime.minute() === 0) {
-        console.log("Daily reset triggered at midnight IST");
+      // Check if it's midnight (00:00:00 to 00:01:00)
+      if (istTime.getHours() === 0 && istTime.getMinutes() === 0) {
+        console.log("Daily reset triggered at midnight IST:", istTime);
         fetchInvoices();
       }
     };
 
+    // Check every minute
     const interval = setInterval(checkForDailyReset, 60000);
+    
+    // Initial check
     checkForDailyReset();
     
     return () => clearInterval(interval);

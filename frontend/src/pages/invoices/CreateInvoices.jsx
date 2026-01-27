@@ -18,12 +18,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Fixed business information
+  // Fixed business information with updated phone
   const fixedBusinessInfo = {
     businessName: "Cotton Stock Kids Wear",
     email: "cottonstockkidswear@gmail.com",
-    phone: "9892613808",
-    address: "Shop no M-1832 (2P) ground floor gandhi bazaar Chembur colony , chembur 400074" // Added address
+    phone: "8591116115", // Updated phone number
+    address: "Shop no M-1832 (2P) ground floor gandhi bazaar Chembur colony , chembur 400074"
   };
 
   // Predefined items for dropdown
@@ -54,24 +54,35 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     billFrom: {
       businessName: fixedBusinessInfo.businessName,
       email: fixedBusinessInfo.email,
-      address: fixedBusinessInfo.address, // Fixed address
+      address: fixedBusinessInfo.address,
       phone: fixedBusinessInfo.phone,
     },
     billTo: {
       clientName: "", // Only client name
       phone: "", // Only client phone
     },
-    items: [{ name: "Boys T-shirt", quantity: 1, unitPrice: 0 }], // Default item (discount removed)
+    items: [{ name: "Boys T-shirt", quantity: 1, unitPrice: 0 }],
     notes: "",
     paymentMode: "Cash",
     status: "Pending",
-    invoiceDiscount: 0,
+    directAmountReduction: 0, // Changed from invoiceDiscount
   });
 
   const [loading, setLoading] = useState(false);
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
 
   useEffect(() => {
+    const generateInvoiceNumber = () => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      
+      // Generate format: INV-YYYYMMDD-XXX
+      const baseNumber = `INV-${year}${month}${day}`;
+      return baseNumber;
+    };
+
     if (existingInvoice) {
       const formattedItems = existingInvoice.items && Array.isArray(existingInvoice.items) 
         ? existingInvoice.items.map(item => ({
@@ -87,59 +98,30 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         invoiceDate: existingInvoice.invoiceDate 
           ? moment(existingInvoice.invoiceDate).format("YYYY-MM-DD")
           : new Date().toISOString().split("T")[0],
-        dueDate: "", // Empty due date
+        dueDate: "",
         billFrom: {
           businessName: fixedBusinessInfo.businessName,
           email: fixedBusinessInfo.email,
-          address: fixedBusinessInfo.address, // Fixed address
+          address: fixedBusinessInfo.address,
           phone: fixedBusinessInfo.phone,
         },
         billTo: {
           clientName: existingInvoice.billTo?.clientName || "",
-          phone: existingInvoice.billTo?.phone || "", // Only phone
+          phone: existingInvoice.billTo?.phone || "",
         },
         items: formattedItems,
-        invoiceDiscount: existingInvoice.invoiceDiscount || 0,
+        directAmountReduction: existingInvoice.directAmountReduction || 0, // Changed
         paymentMode: existingInvoice.paymentMode || "Cash",
         notes: existingInvoice.notes || "",
         status: existingInvoice.status || "Pending",
       });
     } else {
-      const generateNewInvoiceNumber = async () => {
-        setIsGeneratingNumber(true);
-        try {
-          const response = await axiosInstance.get(
-            API_PATHS.INVOICE.GET_ALL_INVOICES
-          );
-
-          const invoices = response.data?.data || [];
-          let maxNum = 0;
-
-          invoices.forEach((inv) => {
-            const match = inv.invoiceNumber?.match(/INV-(\d+)/);
-            if (match) {
-              const num = parseInt(match[1]);
-              if (!isNaN(num) && num > maxNum) maxNum = num;
-            }
-          });
-
-          const newInvoiceNumber = `INV-${String(maxNum + 1).padStart(1, "0")}`;
-
-          setFormData((prev) => ({
-            ...prev,
-            invoiceNumber: newInvoiceNumber,
-          }));
-        } catch (error) {
-          setFormData((prev) => ({
-            ...prev,
-            invoiceNumber: `INV-1`,
-          }));
-        } finally {
-          setIsGeneratingNumber(false);
-        }
-      };
-
-      generateNewInvoiceNumber();
+      // Set initial invoice number with date
+      const invoiceNumber = generateInvoiceNumber();
+      setFormData((prev) => ({
+        ...prev,
+        invoiceNumber: `${invoiceNumber}-001`, // Default to 001 for new day
+      }));
     }
   }, [existingInvoice, user]);
 
@@ -150,7 +132,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         ...prev,
         billTo: {
           clientName: aiData.clientName || "",
-          phone: aiData.phone || "", // Only phone from AI data
+          phone: aiData.phone || "",
         },
         items: aiData.items && Array.isArray(aiData.items) 
           ? aiData.items.map(item => ({
@@ -200,7 +182,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     setFormData({ ...formData, items: newItems });
   };
 
-  // Calculate totals with discount
+  // Calculate totals with direct amount reduction
   const calculateTotals = () => {
     let subtotal = 0;
 
@@ -211,12 +193,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       });
     }
 
-    const invoiceDiscountAmount = subtotal * ((formData.invoiceDiscount || 0) / 100);
-    const finalTotal = subtotal - invoiceDiscountAmount;
+    const directReduction = parseFloat(formData.directAmountReduction) || 0;
+    const finalTotal = Math.max(0, subtotal - directReduction);
 
     return {
       subtotal: Number(subtotal.toFixed(2)),
-      invoiceDiscount: Number(invoiceDiscountAmount.toFixed(2)),
+      directAmountReduction: Number(directReduction.toFixed(2)),
       finalTotal: Number(finalTotal.toFixed(2))
     };
   };
@@ -255,13 +237,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       }
 
       const itemsForSubmission = validItems.map(item => {
-        const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
-        
         return {
           name: item.name || "Boys T-shirt",
           quantity: Number(item.quantity) || 0,
           unitPrice: Number(item.unitPrice) || 0,
-          total: Number(itemTotal.toFixed(2))
         };
       });
 
@@ -270,7 +249,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       const finalFormData = {
         invoiceNumber: formData.invoiceNumber || "",
         invoiceDate: formData.invoiceDate || new Date().toISOString().split("T")[0],
-        dueDate: formData.dueDate || "", // Optional due date
+        dueDate: formData.dueDate || "",
         billFrom: {
           businessName: fixedBusinessInfo.businessName,
           email: fixedBusinessInfo.email,
@@ -282,12 +261,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           phone: formData.billTo?.phone || ""
         },
         items: itemsForSubmission,
-        invoiceDiscount: Number(formData.invoiceDiscount) || 0,
+        directAmountReduction: Number(formData.directAmountReduction) || 0, // Changed
         paymentMode: formData.paymentMode || "Cash",
         notes: formData.notes || "",
         status: formData.status || "Pending",
         subtotal: finalTotals.subtotal,
-        discountTotal: finalTotals.invoiceDiscount,
+        discountTotal: finalTotals.directAmountReduction, // Changed
         total: finalTotals.finalTotal
       };
 
@@ -320,7 +299,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         </Button>
       </div>
 
-      {/* Invoice Details - Simplified */}
+      {/* Invoice Details */}
       <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputField
@@ -344,7 +323,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         </div>
       </div>
 
-      {/* Bill From & Bill To - Simplified */}
+      {/* Bill From & Bill To */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-sm shadow-gray-100 border border-slate-200 space-y-4">
           <h3 className="text-lg font-semibold text-slate-900 mb-2">Bill From</h3>
@@ -410,7 +389,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         </div>
       </div>
 
-      {/* Items Table with Dropdown - DISC % COLUMN REMOVED */}
+      {/* Items Table */}
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm shadow-gray-100 overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-slate-200 bg-slate-50">
           <h3 className="text-lg font-semibold text-slate-900">Items</h3>
@@ -422,7 +401,6 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Item</th>
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Price</th>
-                {/* DISC % COLUMN REMOVED */}
                 <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total</th>
                 <th className="px-2 sm:px-6 py-3"></th>
               </tr>
@@ -471,7 +449,6 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
                       required
                     />
                   </td>
-                  {/* DISC % CELL REMOVED */}
                   <td className="px-2 sm:px-6 py-4 text-sm text-slate-500 font-medium">
                     ₹{((item.quantity || 0) * (item.unitPrice || 0)).toFixed(2)}
                   </td>
@@ -516,23 +493,22 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             placeholder="Add any additional notes here..."
           />
           
-          {/* Invoice-level Discount */}
+          {/* Direct Amount Reduction */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Discount (%) {/* Changed from "Invoice Discount (%)" */}
+              Direct Amount Reduction (₹)
             </label>
             <input
               type="number"
-              name="invoiceDiscount"
-              value={formData.invoiceDiscount || ""}
+              name="directAmountReduction"
+              value={formData.directAmountReduction || ""}
               onChange={handleInputChange}
               className="w-full h-10 px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="0"
               min="0"
-              max="100"
-              step="0.1"
+              step="0.01"
             />
-            <p className="text-xs text-slate-500 mt-1">Discount applied on subtotal</p>
+            <p className="text-xs text-slate-500 mt-1">Enter amount to subtract directly from subtotal</p>
           </div>
 
           <SelectField
@@ -560,10 +536,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
               <p className="font-medium">₹{totals.subtotal.toFixed(2)}</p>
             </div>
             
-            {formData.invoiceDiscount > 0 && (
+            {formData.directAmountReduction > 0 && (
               <div className="flex justify-between text-sm text-red-600">
-                <p>Discount ({formData.invoiceDiscount}%):</p>
-                <p className="font-medium">-₹{totals.invoiceDiscount.toFixed(2)}</p>
+                <p>Direct Reduction:</p>
+                <p className="font-medium">-₹{totals.directAmountReduction.toFixed(2)}</p>
               </div>
             )}
             
