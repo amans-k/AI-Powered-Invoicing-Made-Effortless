@@ -49,28 +49,25 @@ exports.createInvoice = async (req, res) => {
       phone: "8591116115" // Updated phone number
     };
 
-    // Generate invoice number with midnight reset
+    // Generate simple sequential invoice number (INV-1, INV-2, etc.)
     const generateInvoiceNumber = async () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
+      // Find the highest invoice number globally (not user-specific)
+      const latestInvoice = await Invoice.findOne()
+        .sort({ createdAt: -1 });
       
-      // Find today's last invoice (after midnight)
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0); // Reset at midnight
-      
-      // Find latest invoice from today
-      const latestInvoice = await Invoice.findOne({
-        createdAt: { $gte: todayStart },
-        invoiceNumber: { $regex: `^INV-${year}${month}${day}-` }
-      }).sort({ invoiceNumber: -1 });
-
-      if (latestInvoice) {
-        const lastNum = parseInt(latestInvoice.invoiceNumber.split('-').pop());
-        return `INV-${year}${month}${day}-${String(lastNum + 1).padStart(3, '0')}`;
+      if (latestInvoice && latestInvoice.invoiceNumber) {
+        // Extract number from "INV-1", "INV-2", etc.
+        const match = latestInvoice.invoiceNumber.match(/INV-(\d+)/);
+        if (match) {
+          const lastNum = parseInt(match[1]);
+          if (!isNaN(lastNum)) {
+            return `INV-${lastNum + 1}`;
+          }
+        }
       }
-      return `INV-${year}${month}${day}-001`;
+      
+      // Start from INV-1 if no invoices exist
+      return "INV-1";
     };
 
     const finalInvoiceNumber = invoiceNumber || await generateInvoiceNumber();
