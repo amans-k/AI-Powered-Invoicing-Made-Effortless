@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     // Personal/Business Information
     businessName: { 
       type: String, 
-      default: "Cotton Stock Kids Wear", // Default business name
+      default: "Cotton Stock Kid's Wear", // Default business name
     },
     
     businessEmail: {

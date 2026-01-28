@@ -43,7 +43,7 @@ exports.createInvoice = async (req, res) => {
 
     // Fixed billFrom information with updated phone
     const fixedBillFrom = {
-      businessName: "Cotton Stock Kids Wear",
+      businessName: "Cotton Stock Kid's Wear",
       address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
       email: "cottonstockkidswear@gmail.com",
       phone: "8591116115" // Updated phone number
@@ -268,7 +268,7 @@ exports.updateInvoice = async (req, res) => {
 
     // Fixed billFrom information with updated phone
     const fixedBillFrom = {
-      businessName: "Cotton Stock Kids Wear",
+      businessName: "Cotton Stock Kid's Wear",
       address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
       email: "cottonstockkidswear@gmail.com",
       phone: "8591116115" // Updated phone number

@@ -14,7 +14,7 @@ const formatUserResponse = (user) => {
     id: user._id, // Add id field for frontend compatibility
     name: user.name,
     email: user.email,
-    businessName: user.businessName || "Cotton Stock Kids Wear",
+    businessName: user.businessName || "Cotton Stock Kid's Wear",
     businessEmail: user.businessEmail || "cottonstockkidswear@gmail.com",
     businessPhone: user.businessPhone || "9892613808",
     address: user.address || "",
