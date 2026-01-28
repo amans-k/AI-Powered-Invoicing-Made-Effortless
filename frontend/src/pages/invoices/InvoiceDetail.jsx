@@ -166,7 +166,7 @@ const InvoiceDetail = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-8">
             <div>
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Bill From</h3>
-              <p className="font-semibold text-slate-800">Cotton Stock Kids Wear</p>
+              <p className="font-semibold text-slate-800">Cotton Stock Kid's Wear</p>
               <p className="text-slate-600">Shop no M-1832 (2P) ground floor gandhi bazaar</p>
               <p className="text-slate-600">Chembur colony, chembur 400074</p>
               <p className="text-slate-600">cottonstockkidswear@gmail.com</p>

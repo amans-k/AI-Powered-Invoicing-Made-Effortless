@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
 import moment from "moment";
 import { useAuth } from "../../context/AuthContext";
@@ -46,10 +46,10 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     "Others"
   ];
 
-  // Initial form state
+  // Initial form state with current date
   const [formData, setFormData] = useState({
     invoiceNumber: "",
-    invoiceDate: new Date().toISOString().split("T")[0],
+    invoiceDate: moment().format("YYYY-MM-DD"), // Default current date
     dueDate: "", // Removed due date requirement
     billFrom: {
       businessName: fixedBusinessInfo.businessName,
@@ -70,6 +70,39 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
 
   const [loading, setLoading] = useState(false);
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(false);
+  const [isManualDate, setIsManualDate] = useState(false); // Track if user manually changed date
+
+  // Auto-update date only if user hasn't manually changed it
+  useEffect(() => {
+    if (!existingInvoice && !isManualDate) {
+      const currentDate = moment().format("YYYY-MM-DD");
+      if (formData.invoiceDate !== currentDate) {
+        console.log("Auto-updating invoice date to:", currentDate);
+        setFormData(prev => ({
+          ...prev,
+          invoiceDate: currentDate
+        }));
+      }
+    }
+  }, [existingInvoice, isManualDate]);
+
+  // Check date change every minute (only if not manual)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!existingInvoice && !isManualDate) {
+        const currentDate = moment().format("YYYY-MM-DD");
+        if (formData.invoiceDate !== currentDate) {
+          console.log("Midnight auto-update detected:", currentDate);
+          setFormData(prev => ({
+            ...prev,
+            invoiceDate: currentDate
+          }));
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [formData.invoiceDate, existingInvoice, isManualDate]);
 
   useEffect(() => {
     const generateInvoiceNumber = async () => {
@@ -120,7 +153,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         invoiceNumber: existingInvoice.invoiceNumber || "",
         invoiceDate: existingInvoice.invoiceDate 
           ? moment(existingInvoice.invoiceDate).format("YYYY-MM-DD")
-          : new Date().toISOString().split("T")[0],
+          : moment().format("YYYY-MM-DD"),
         dueDate: "",
         billFrom: {
           businessName: fixedBusinessInfo.businessName,
@@ -133,11 +166,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           phone: existingInvoice.billTo?.phone || "",
         },
         items: formattedItems,
-        directAmountReduction: existingInvoice.directAmountReduction || 0, // Changed
+        directAmountReduction: existingInvoice.directAmountReduction || 0,
         paymentMode: existingInvoice.paymentMode || "Cash",
         notes: existingInvoice.notes || "",
         status: existingInvoice.status || "Pending",
       });
+      setIsManualDate(true); // Existing invoices have fixed dates
     } else {
       // Generate sequential invoice number
       generateInvoiceNumber();
@@ -183,7 +217,24 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
       setFormData((prev) => ({ ...prev, items: newItems }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
+      
+      // If user manually changes date, mark it as manual
+      if (name === "invoiceDate") {
+        setIsManualDate(true);
+        console.log("User manually changed date to:", value);
+      }
     }
+  };
+
+  // Reset to current date button handler
+  const handleResetToCurrentDate = () => {
+    const currentDate = moment().format("YYYY-MM-DD");
+    setFormData(prev => ({
+      ...prev,
+      invoiceDate: currentDate
+    }));
+    setIsManualDate(false); // Reset to auto-update mode
+    toast.success(`Date reset to today: ${moment().format("DD MMM YYYY")}`);
   };
 
   const handleAddItem = () => {
@@ -267,7 +318,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
 
       const finalFormData = {
         invoiceNumber: formData.invoiceNumber || "",
-        invoiceDate: formData.invoiceDate || new Date().toISOString().split("T")[0],
+        invoiceDate: formData.invoiceDate || moment().format("YYYY-MM-DD"), // Send selected date to backend
         dueDate: formData.dueDate || "",
         billFrom: {
           businessName: fixedBusinessInfo.businessName,
@@ -280,12 +331,12 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           phone: formData.billTo?.phone || ""
         },
         items: itemsForSubmission,
-        directAmountReduction: Number(formData.directAmountReduction) || 0, // Changed
+        directAmountReduction: Number(formData.directAmountReduction) || 0,
         paymentMode: formData.paymentMode || "Cash",
         notes: formData.notes || "",
         status: formData.status || "Pending",
         subtotal: finalTotals.subtotal,
-        discountTotal: finalTotals.directAmountReduction, // Changed
+        discountTotal: finalTotals.directAmountReduction,
         total: finalTotals.finalTotal
       };
 
@@ -313,9 +364,15 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
           {existingInvoice ? "Edit Invoice" : "Create Invoice"}
         </h2>
 
-        <Button type="submit" isLoading={loading || isGeneratingNumber}>
-          {existingInvoice ? "Save Changes" : "Save Invoice"}
-        </Button>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-slate-600 bg-slate-100 px-3 py-1 rounded flex items-center gap-2">
+            <Calendar className="w-3 h-3" />
+            Today: {moment().format("DD MMM YYYY")}
+          </span>
+          <Button type="submit" isLoading={loading || isGeneratingNumber}>
+            {existingInvoice ? "Save Changes" : "Save Invoice"}
+          </Button>
+        </div>
       </div>
 
       {/* Invoice Details */}
@@ -330,15 +387,44 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             disabled
           />
 
-          <InputField
-            label="Invoice Date"
-            type="date"
-            name="invoiceDate"
-            value={formData.invoiceDate || ""}
-            onChange={handleInputChange}
-            className="cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-            required
-          />
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-sm font-medium text-slate-700">
+                Invoice Date
+              </label>
+              {isManualDate && (
+                <button
+                  type="button"
+                  onClick={handleResetToCurrentDate}
+                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <Calendar className="w-3 h-3" />
+                  Reset to Today
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                name="invoiceDate"
+                value={formData.invoiceDate || ""}
+                onChange={(e) => handleInputChange(e)}
+                className="w-full h-10 px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                max={moment().format("YYYY-MM-DD")} // Can't select future dates
+              />
+            </div>
+            <div className="flex justify-between">
+              <p className="text-xs text-slate-500 mt-1">
+                {isManualDate ? 
+                  `Manual date selected (${moment(formData.invoiceDate).format("DD MMM YYYY")})` : 
+                  "Auto-updates daily at 12AM"}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Max: {moment().format("DD MMM YYYY")}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -567,8 +653,14 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
               <p>₹{totals.finalTotal.toFixed(2)}</p>
             </div>
 
-            {/* Payment Mode Display */}
+            {/* Date Info */}
             <div className="pt-4 mt-4 border-t border-slate-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-700">Invoice Date:</span>
+                <span className="text-sm font-semibold text-slate-900">
+                  {moment(formData.invoiceDate).format("DD MMM YYYY")}
+                </span>
+              </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-slate-700">Payment Mode:</span>
                 <span className="text-sm font-semibold text-slate-900">{formData.paymentMode || "Cash"}</span>

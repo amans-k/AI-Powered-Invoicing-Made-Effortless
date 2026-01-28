@@ -5,7 +5,7 @@ const AuthContext = createContext();
 
 // Fixed business information - can be moved to .env file if needed
 const FIXED_BUSINESS_INFO = {
-  businessName: "Cotton Stock Kids Wear",
+  businessName: "Cotton Stock Kid's Wear",
   email: "cottonstockkidswear27@gmail.com",
   phone: "9892613808",
   // Address will be stored in user profile
