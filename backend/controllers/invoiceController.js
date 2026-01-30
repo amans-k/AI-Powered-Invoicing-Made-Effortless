@@ -15,10 +15,12 @@ exports.createInvoice = async (req, res) => {
       items,
       notes,
       paymentMode = "Cash",
-      status = "Unpaid", // CHANGED: Default to Unpaid (not Pending)
+      status = "Paid", // ✅ Default to "Paid"
       directAmountReduction = 0,
       invoiceDiscount = 0,
     } = req.body;
+
+    console.log("🟢 CREATE INVOICE - Status:", status);
 
     // Auto-migrate: If invoiceDiscount is provided but not directAmountReduction
     if (invoiceDiscount > 0 && directAmountReduction === 0) {
@@ -27,59 +29,75 @@ exports.createInvoice = async (req, res) => {
 
     // Validate required fields
     if (!items || items.length === 0) {
-      return res.status(400).json({ message: "At least one item is required" });
+      return res.status(400).json({ 
+        success: false,
+        message: "At least one item is required" 
+      });
     }
 
     // Convert old "Pending" to "Unpaid" for consistency
     if (status === "Pending") {
-      status = "Unpaid";
+      status = "Paid";
     }
 
     // Calculate subtotal and total pieces
     let subtotal = 0;
-    let totalPieces = 0; // NEW: Track total pieces sold
+    let totalPieces = 0;
     items.forEach((item) => {
       const itemTotal = item.unitPrice * item.quantity;
       subtotal += itemTotal;
-      totalPieces += item.quantity || 0; // NEW: Count pieces
+      totalPieces += item.quantity || 0;
     });
 
-    // Apply direct amount reduction (not percentage)
+    // Apply direct amount reduction
     const discountTotal = parseFloat(directAmountReduction) || 0;
     const total = Math.max(0, subtotal - discountTotal);
 
-    // Fixed billFrom information with updated phone
+    // Fixed billFrom information
     const fixedBillFrom = {
       businessName: "Cotton Stock Kid's Wear",
       address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
       email: "cottonstockkidswear@gmail.com",
-      phone: "8591116115" // Updated phone number
+      phone: "8591116115"
     };
 
-    // Generate simple sequential invoice number (INV-1, INV-2, etc.)
+    // ✅ FIXED: Generate invoice number with proper sorting
     const generateInvoiceNumber = async () => {
-      // Find the highest invoice number globally (not user-specific)
-      const latestInvoice = await Invoice.findOne()
-        .sort({ createdAt: -1 });
-      
-      if (latestInvoice && latestInvoice.invoiceNumber) {
-        // Extract number from "INV-1", "INV-2", etc.
-        const match = latestInvoice.invoiceNumber.match(/INV-(\d+)/);
-        if (match) {
-          const lastNum = parseInt(match[1]);
-          if (!isNaN(lastNum)) {
-            return `INV-${lastNum + 1}`;
+      try {
+        console.log("🔍 Generating invoice number...");
+        
+        // Find the highest invoice number by sorting invoiceNumber
+        const latestInvoice = await Invoice.findOne()
+          .sort({ invoiceNumber: -1 }); // ✅ Sort by invoiceNumber, not createdAt
+        
+        console.log("📊 Latest invoice found:", latestInvoice?.invoiceNumber);
+        
+        if (latestInvoice && latestInvoice.invoiceNumber) {
+          // Extract number from "INV-1", "INV-2", etc.
+          const match = latestInvoice.invoiceNumber.match(/INV-(\d+)/);
+          if (match) {
+            const lastNum = parseInt(match[1]);
+            if (!isNaN(lastNum)) {
+              const nextNum = lastNum + 1;
+              console.log(`✅ Next invoice number: INV-${nextNum}`);
+              return `INV-${nextNum}`;
+            }
           }
         }
+        
+        console.log("📝 No invoices found, starting from INV-1");
+        return "INV-1";
+        
+      } catch (error) {
+        console.error("❌ Error generating invoice number:", error);
+        return `INV-${Date.now()}`;
       }
-      
-      // Start from INV-1 if no invoices exist
-      return "INV-1";
     };
 
     const finalInvoiceNumber = invoiceNumber || await generateInvoiceNumber();
+    console.log("🎯 Final invoice number:", finalInvoiceNumber);
 
-    // Prepare items for database (with total calculation)
+    // Prepare items for database
     const formattedItems = items.map(item => ({
       name: item.name || item.description || "Item",
       quantity: item.quantity,
@@ -99,18 +117,19 @@ exports.createInvoice = async (req, res) => {
       items: formattedItems,
       notes,
       paymentMode: paymentMode || "Cash",
-      status: status || "Unpaid", // CHANGED: Default to Unpaid
+      status: status || "Paid", // ✅ Default to "Paid" (not "Unpaid")
       directAmountReduction: directAmountReduction || 0,
       invoiceDiscount: invoiceDiscount || 0,
       subtotal,
       discountTotal,
       total,
-      totalPieces, // NEW: Save total pieces
+      totalPieces,
     });
 
+    console.log("💾 Saving invoice to database...");
     await invoice.save();
+    console.log("✅ Invoice saved successfully:", finalInvoiceNumber);
 
-    // For backward compatibility: include totalPieces in response
     const invoiceResponse = invoice.toObject();
     invoiceResponse.totalPieces = totalPieces;
 
@@ -120,13 +139,15 @@ exports.createInvoice = async (req, res) => {
       data: invoiceResponse,
     });
   } catch (error) {
-    console.error("Create invoice error:", error);
+    console.error("❌ Create invoice error:", error);
+    console.error("❌ Error code:", error.code);
+    console.error("❌ Error message:", error.message);
     
-    // Handle duplicate invoice number
     if (error.code === 11000) {
+      console.error("❌ Duplicate invoice number detected!");
       return res.status(400).json({ 
         success: false,
-        message: "Invoice number already exists" 
+        message: "Invoice number already exists. Please try again." 
       });
     }
     
@@ -143,24 +164,23 @@ exports.createInvoice = async (req, res) => {
 // @access Private
 exports.getInvoices = async (req, res) => {
   try {
-    console.log("Fetching invoices for user:", req.user.id);
+    console.log("🔍 Fetching invoices for user:", req.user.id);
     
     const invoices = await Invoice.find({ user: req.user.id })
-      .populate("user", "name email")
-      .sort({ createdAt: -1 });
+      .sort({ invoiceDate: -1, createdAt: -1 });
 
-    console.log(`Found ${invoices.length} invoices for user ${req.user.id}`);
+    console.log(`✅ Found ${invoices.length} invoices for user ${req.user.id}`);
 
     // Process invoices for backward compatibility
     const processedInvoices = invoices.map(invoice => {
       const invoiceObj = invoice.toObject();
       
-      // Convert old "Pending" to "Unpaid"
+      // ✅ FIXED: Convert old "Pending" to "Unpaid" (not "Paid")
       if (invoiceObj.status === "Pending") {
         invoiceObj.status = "Unpaid";
       }
       
-      // If old invoice has invoiceDiscount but not directAmountReduction
+      // Migrate old discount field
       if (invoiceObj.invoiceDiscount > 0 && invoiceObj.directAmountReduction === 0) {
         invoiceObj.directAmountReduction = invoiceObj.invoiceDiscount;
       }
@@ -179,7 +199,7 @@ exports.getInvoices = async (req, res) => {
       data: processedInvoices,
     });
   } catch (error) {
-    console.error("Get invoices error:", error);
+    console.error("❌ Get invoices error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error fetching invoices", 
@@ -193,8 +213,7 @@ exports.getInvoices = async (req, res) => {
 // @access Private
 exports.getInvoiceById = async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id)
-      .populate("user", "name email");
+    const invoice = await Invoice.findById(req.params.id);
     
     if (!invoice) {
       return res.status(404).json({ 
@@ -204,7 +223,7 @@ exports.getInvoiceById = async (req, res) => {
     }
 
     // Check if invoice belongs to the user
-    if (invoice.user._id.toString() !== req.user.id.toString()) {
+    if (invoice.user.toString() !== req.user.id.toString()) {
       return res.status(403).json({ 
         success: false,
         message: "Not authorized to access this invoice" 
@@ -234,7 +253,7 @@ exports.getInvoiceById = async (req, res) => {
       data: invoiceObj,
     });
   } catch (error) {
-    console.error("Get invoice by ID error:", error);
+    console.error("❌ Get invoice by ID error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error fetching invoice", 
@@ -290,13 +309,13 @@ exports.updateInvoice = async (req, res) => {
     // Recalculate totals and pieces
     let subtotal = 0;
     let discountTotal = 0;
-    let totalPieces = 0; // NEW: Track pieces
+    let totalPieces = 0;
 
     if (items && items.length > 0) {
       items.forEach((item) => {
         const itemTotal = item.unitPrice * item.quantity;
         subtotal += itemTotal;
-        totalPieces += item.quantity || 0; // NEW: Count pieces
+        totalPieces += item.quantity || 0;
       });
       discountTotal = parseFloat(directAmountReduction) || 0;
     } else {
@@ -308,12 +327,12 @@ exports.updateInvoice = async (req, res) => {
 
     const total = Math.max(0, subtotal - discountTotal);
 
-    // Fixed billFrom information with updated phone
+    // Fixed billFrom information
     const fixedBillFrom = {
       businessName: "Cotton Stock Kid's Wear",
       address: "Shop no M-1832 (2P) ground floor gandhi bazaar, Chembur colony, chembur 400074",
       email: "cottonstockkidswear@gmail.com",
-      phone: "8591116115" // Updated phone number
+      phone: "8591116115"
     };
 
     // Prepare items for database
@@ -337,13 +356,13 @@ exports.updateInvoice = async (req, res) => {
         items: formattedItems,
         notes: notes !== undefined ? notes : existingInvoice.notes,
         paymentMode: paymentMode || existingInvoice.paymentMode || "Cash",
-        status: status || existingInvoice.status || "Unpaid", // CHANGED: Default to Unpaid
+        status: status || existingInvoice.status || "Paid", // ✅ FIXED: Default to "Paid" (not "Unpaid")
         directAmountReduction: directAmountReduction || existingInvoice.directAmountReduction || 0,
         invoiceDiscount: invoiceDiscount || existingInvoice.invoiceDiscount || 0,
         subtotal,
         discountTotal,
         total,
-        totalPieces: totalPieces || existingInvoice.totalPieces || 0, // NEW: Save pieces
+        totalPieces: totalPieces || existingInvoice.totalPieces || 0,
       },
       { new: true, runValidators: true }
     );
@@ -354,7 +373,7 @@ exports.updateInvoice = async (req, res) => {
       data: updatedInvoice,
     });
   } catch (error) {
-    console.error("Update invoice error:", error);
+    console.error("❌ Update invoice error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error updating invoice", 
@@ -392,7 +411,7 @@ exports.deleteInvoice = async (req, res) => {
       message: "Invoice deleted successfully",
     });
   } catch (error) {
-    console.error("Delete invoice error:", error);
+    console.error("❌ Delete invoice error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error deleting invoice", 
@@ -418,7 +437,7 @@ exports.getDashboardStats = async (req, res) => {
     let totalUnpaid = 0;
     let paidAmount = 0;
     let unpaidAmount = 0;
-    let totalPieces = 0; // NEW: Total pieces sold
+    let totalPieces = 0;
     
     allInvoices.forEach(invoice => {
       const invoiceStatus = invoice.status === "Pending" ? "Unpaid" : invoice.status;
@@ -454,7 +473,7 @@ exports.getDashboardStats = async (req, res) => {
     let todayAmount = 0;
     let todayPaid = 0;
     let todayPaidAmount = 0;
-    let todayPieces = 0; // NEW: Today's pieces sold
+    let todayPieces = 0;
     
     todayInvoices.forEach(invoice => {
       const invoiceStatus = invoice.status === "Pending" ? "Unpaid" : invoice.status;
@@ -495,21 +514,21 @@ exports.getDashboardStats = async (req, res) => {
           totalAmount,
           paidAmount,
           unpaidAmount,
-          totalPieces // NEW: Include in stats
+          totalPieces
         },
         todayStats: {
           todayInvoices: todayInvoicesCount,
           todayPaid,
           todayAmount,
           todayPaidAmount,
-          todayPieces // NEW: Include in today's stats
+          todayPieces
         },
         recentInvoices
       }
     });
     
   } catch (error) {
-    console.error("Get dashboard stats error:", error);
+    console.error("❌ Get dashboard stats error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error fetching dashboard statistics", 
@@ -541,7 +560,7 @@ exports.getFilteredDashboardData = async (req, res) => {
       };
     } else if (filter === 'week') {
       const weekStart = new Date();
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       weekStart.setHours(0, 0, 0, 0);
       
       query.invoiceDate = {
@@ -577,7 +596,7 @@ exports.getFilteredDashboardData = async (req, res) => {
     let totalUnpaid = 0;
     let paidAmount = 0;
     let unpaidAmount = 0;
-    let totalPieces = 0; // NEW: Filtered pieces sold
+    let totalPieces = 0;
     
     filteredInvoices.forEach(invoice => {
       const invoiceStatus = invoice.status === "Pending" ? "Unpaid" : invoice.status;
@@ -621,14 +640,14 @@ exports.getFilteredDashboardData = async (req, res) => {
           totalAmount,
           paidAmount,
           unpaidAmount,
-          totalPieces // NEW: Include in filtered stats
+          totalPieces
         },
         recentInvoices: recentFilteredInvoices
       }
     });
     
   } catch (error) {
-    console.error("Get filtered dashboard data error:", error);
+    console.error("❌ Get filtered dashboard data error:", error);
     res.status(500).json({ 
       success: false,
       message: "Error fetching filtered dashboard data", 

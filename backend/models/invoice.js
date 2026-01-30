@@ -64,8 +64,6 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
       default: Date.now,
     },
-
-    // dueDate removed as per frontend requirement (not needed)
     
     billFrom: {
       businessName: {
@@ -82,7 +80,7 @@ const invoiceSchema = new mongoose.Schema(
       },
       phone: {
         type: String,
-        default: "8591116115" // Updated phone number
+        default: "8591116115"
       },
     },
     
@@ -123,11 +121,11 @@ const invoiceSchema = new mongoose.Schema(
       required: true
     },
 
-    // CHANGED: Status enum updated to match frontend
+    // ✅ FIXED: Default to "Paid" as per your requirement
     status: {
       type: String,
-      enum: ["Unpaid", "Paid"], // Only Unpaid and Paid (removed Pending, Overdue, Cancelled)
-      default: "Unpaid", // Default to Unpaid instead of Pending
+      enum: ["Unpaid", "Paid"],
+      default: "Paid", // ✅ Changed from "Unpaid" to "Paid"
       required: true
     },
 
@@ -145,7 +143,6 @@ const invoiceSchema = new mongoose.Schema(
       default: 0
     },
     
-    // NEW: Direct amount reduction field
     directAmountReduction: {
       type: Number,
       required: true,
@@ -153,7 +150,6 @@ const invoiceSchema = new mongoose.Schema(
       default: 0
     },
     
-    // Keep for backward compatibility with old data
     invoiceDiscount: {
       type: Number,
       min: 0,
@@ -167,7 +163,6 @@ const invoiceSchema = new mongoose.Schema(
       default: 0
     },
     
-    // NEW: Total pieces sold in this invoice
     totalPieces: {
       type: Number,
       required: true,
@@ -184,17 +179,14 @@ const invoiceSchema = new mongoose.Schema(
 
 // ✅ Compound index
 invoiceSchema.index({ user: 1, invoiceNumber: 1 }, { unique: true });
-
-// ✅ Index for date-based queries (for dashboard filters)
 invoiceSchema.index({ user: 1, invoiceDate: -1 });
 invoiceSchema.index({ user: 1, status: 1 });
 invoiceSchema.index({ user: 1, paymentMode: 1 });
 
-// ✅ Pre-save middleware to calculate totals and totalPieces
+// ✅ Pre-save middleware
 invoiceSchema.pre('save', function(next) {
   // Calculate subtotal and total pieces from items
   this.subtotal = this.items.reduce((sum, item) => {
-    // Calculate item total
     const itemTotal = item.quantity * item.unitPrice;
     item.total = itemTotal;
     return sum + itemTotal;
@@ -203,23 +195,23 @@ invoiceSchema.pre('save', function(next) {
   // Calculate total pieces
   this.totalPieces = this.items.reduce((sum, item) => sum + item.quantity, 0);
   
-  // Auto-migrate: If invoiceDiscount exists but directAmountReduction is 0
+  // Auto-migrate old discount
   if (this.invoiceDiscount > 0 && this.directAmountReduction === 0) {
     this.directAmountReduction = this.invoiceDiscount;
   }
   
-  // Set discountTotal equal to directAmountReduction
+  // Set discountTotal
   this.discountTotal = this.directAmountReduction || 0;
   
-  // Calculate final total (subtotal minus direct reduction)
+  // Calculate final total
   this.total = Math.max(0, this.subtotal - this.directAmountReduction);
   
-  // Auto-convert old "Pending" status to "Unpaid"
+  // ✅ FIXED: Auto-convert old "Pending" status to "Paid"
   if (this.status === "Pending") {
-    this.status = "Unpaid";
+    this.status = "Paid"; // ✅ Changed from "Unpaid" to "Paid"
   }
   
-  // If billFrom is empty or partial, set defaults
+  // Set default billFrom if empty
   if (!this.billFrom || !this.billFrom.businessName) {
     this.billFrom = {
       businessName: "Cotton Stock Kid's Wear",
@@ -232,56 +224,22 @@ invoiceSchema.pre('save', function(next) {
   next();
 });
 
-// ✅ Pre-update middleware for findOneAndUpdate operations
-invoiceSchema.pre('findOneAndUpdate', async function(next) {
+// ✅ FIXED: Pre-update middleware - REMOVED async
+invoiceSchema.pre('findOneAndUpdate', function(next) { // ❌ REMOVED async
   const update = this.getUpdate();
   
-  // If items are being updated, recalculate totals
-  if (update.items || update.$set?.items) {
-    const items = update.items || update.$set?.items || [];
-    if (items.length > 0) {
-      const subtotal = items.reduce((sum, item) => {
-        const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
-        return sum + itemTotal;
-      }, 0);
-      
-      const totalPieces = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-      
-      // Set subtotal and totalPieces in update
-      if (update.$set) {
-        update.$set.subtotal = subtotal;
-        update.$set.totalPieces = totalPieces;
-      } else {
-        update.subtotal = subtotal;
-        update.totalPieces = totalPieces;
-      }
-      
-      // Calculate discount total
-      const directAmountReduction = update.directAmountReduction || update.$set?.directAmountReduction || 0;
-      const discountTotal = directAmountReduction;
-      
-      if (update.$set) {
-        update.$set.discountTotal = discountTotal;
-        update.$set.total = Math.max(0, subtotal - discountTotal);
-      } else {
-        update.discountTotal = discountTotal;
-        update.total = Math.max(0, subtotal - discountTotal);
-      }
-    }
-  }
-  
-  // Auto-convert "Pending" to "Unpaid" if status is being updated
-  if (update.status === "Pending" || update.$set?.status === "Pending") {
+  // ✅ FIXED: Auto-convert "Pending" to "Paid" if status is being updated
+  if (update && (update.status === "Pending" || update.$set?.status === "Pending")) {
     if (update.$set) {
-      update.$set.status = "Unpaid";
+      update.$set.status = "Paid"; // ✅ Changed from "Unpaid" to "Paid"
     } else {
-      update.status = "Unpaid";
+      update.status = "Paid"; // ✅ Changed from "Unpaid" to "Paid"
     }
   }
   
   // Auto-migrate old invoiceDiscount to directAmountReduction
-  if ((update.invoiceDiscount > 0 && update.directAmountReduction === 0) || 
-      (update.$set?.invoiceDiscount > 0 && update.$set?.directAmountReduction === 0)) {
+  if (update && ((update.invoiceDiscount > 0 && update.directAmountReduction === 0) || 
+      (update.$set?.invoiceDiscount > 0 && update.$set?.directAmountReduction === 0))) {
     if (update.$set) {
       update.$set.directAmountReduction = update.$set.invoiceDiscount || update.invoiceDiscount;
     } else {
@@ -289,7 +247,7 @@ invoiceSchema.pre('findOneAndUpdate', async function(next) {
     }
   }
   
-  next();
+  next(); // ✅ Now this will work!
 });
 
 // ✅ Virtual for formatted invoice date
