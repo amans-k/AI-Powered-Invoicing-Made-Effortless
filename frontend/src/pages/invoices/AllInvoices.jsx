@@ -112,7 +112,7 @@ const AllInvoices = () => {
   const handleStatusChange = async (invoice) => {
     try {
       setStatusChangeLoading(invoice._id);
-      const newstatus = invoice.status === 'Paid' ? 'Pending' : 'Paid';
+      const newstatus = invoice.status === 'Paid' ? 'Unpaid' : 'Paid'; // CHANGED: "Pending" to "Unpaid"
       const updatedInvoice = { ...invoice, status: newstatus };
       const response = await axiosInstance.put(API_PATHS.INVOICE.UPDATE_INVOICE(invoice._id), updatedInvoice);
       setInvoices(invoices.map(inv => inv._id === invoice._id ? response.data : inv));
@@ -173,7 +173,12 @@ const AllInvoices = () => {
 
   const filteredInvoices = useMemo(() => {
     let result = invoices
-      .filter(invoice => statusFilter === 'All' || invoice.status === statusFilter)
+      .filter(invoice => {
+        if (statusFilter === 'All') return true;
+        // Convert old "Pending" to "Unpaid" for filtering
+        const invoiceStatus = invoice.status === 'Pending' ? 'Unpaid' : invoice.status;
+        return invoiceStatus === statusFilter;
+      })
       .filter(invoice => {
         const invoiceNumber = invoice.invoiceNumber || '';
         const clientName = invoice.billTo?.clientName || '';
@@ -330,9 +335,8 @@ const AllInvoices = () => {
                     onChange={(e) => setStatusFilter(e.target.value)}
                   >
                     <option value="All">All Statuses</option>
-                    <option value="Pending">Pending</option>
+                    <option value="Unpaid">Unpaid</option> {/* CHANGED: "Pending" to "Unpaid" */}
                     <option value="Paid">Paid</option>
-                    <option value="Overdue">Overdue</option>
                   </select>
                 </div>
 
@@ -482,14 +486,10 @@ const AllInvoices = () => {
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                           invoice.status === 'Paid'
                             ? 'bg-emerald-100 text-emerald-800'
-                            : invoice.status === 'Pending'
-                            ? 'bg-amber-100 text-amber-800'
-                            : invoice.status === 'Overdue'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-slate-100 text-slate-800'
+                            : 'bg-amber-100 text-amber-800' // CHANGED: Only "Unpaid" shows amber now
                         }`}
                       >
-                        {invoice.status || 'Pending'}
+                        {invoice.status === 'Pending' ? 'Unpaid' : invoice.status} {/* CHANGED: Show "Unpaid" for old "Pending" invoices */}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
@@ -503,7 +503,7 @@ const AllInvoices = () => {
                           onClick={() => handleStatusChange(invoice)}
                           isLoading={statusChangeLoading === (invoice._id || invoice.id)}
                         >
-                          {invoice.status === 'Paid' ? 'Mark Pending' : 'Mark Paid'}
+                          {invoice.status === 'Paid' ? 'Mark Unpaid' : 'Mark Paid'} {/* CHANGED: "Pending" to "Unpaid" */}
                         </Button>
                         <Button
                           size="small"

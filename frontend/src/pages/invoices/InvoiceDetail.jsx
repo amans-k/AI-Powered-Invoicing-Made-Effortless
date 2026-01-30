@@ -153,12 +153,10 @@ const InvoiceDetail = () => {
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   invoice.status === 'Paid'
                     ? 'bg-emerald-100 text-emerald-800'
-                    : invoice.status === 'Pending'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-red-100 text-red-800'
+                    : 'bg-amber-100 text-amber-800' // CHANGED: Only "Unpaid" shows amber now
                 }`}
               >
-                {invoice.status}
+                {invoice.status === 'Pending' ? 'Unpaid' : invoice.status} {/* CHANGED: Show "Unpaid" for old "Pending" invoices */}
               </span>
             </div>
           </div>
@@ -192,7 +190,9 @@ const InvoiceDetail = () => {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Status</h3>
-              <p className="font-medium text-slate-800">{invoice.status || 'Pending'}</p>
+              <p className="font-medium text-slate-800">
+                {invoice.status === 'Pending' ? 'Unpaid' : invoice.status} {/* CHANGED: Show "Unpaid" for old "Pending" invoices */}
+              </p>
             </div>
           </div>
 

@@ -64,7 +64,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
     items: [{ name: "Boys T-shirt", quantity: 1, unitPrice: 0 }],
     notes: "",
     paymentMode: "Cash",
-    status: "Pending",
+    status: "Paid", // CHANGED: Default to "Unpaid" instead of "Pending"
     directAmountReduction: 0, // Changed from invoiceDiscount
   });
 
@@ -169,7 +169,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         directAmountReduction: existingInvoice.directAmountReduction || 0,
         paymentMode: existingInvoice.paymentMode || "Cash",
         notes: existingInvoice.notes || "",
-        status: existingInvoice.status || "Pending",
+        status: existingInvoice.status || "Unpaid", // CHANGED: Default to "Unpaid"
       });
       setIsManualDate(true); // Existing invoices have fixed dates
     } else {
@@ -334,7 +334,7 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
         directAmountReduction: Number(formData.directAmountReduction) || 0,
         paymentMode: formData.paymentMode || "Cash",
         notes: formData.notes || "",
-        status: formData.status || "Pending",
+        status: formData.status || "paid", // CHANGED: Default to "Unpaid"
         subtotal: finalTotals.subtotal,
         discountTotal: finalTotals.directAmountReduction,
         total: finalTotals.finalTotal
@@ -621,16 +621,16 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
             name="paymentMode"
             value={formData.paymentMode || "Cash"}
             onChange={handleInputChange}
-            options={["Cash", "Online", "Cheque", "Card", "UPI", "Bank Transfer"]}
+            options={["Cash", "Online",  "Card" ]}
             required
           />
 
           <SelectField
             label="Status"
             name="status"
-            value={formData.status || ""}
+            value={formData.status || "Unpaid"} // CHANGED: Default to "Unpaid"
             onChange={handleInputChange}
-            options={["Pending", "Paid", "Overdue", "Cancelled"]}
+            options={["Unpaid", "Paid"]} // CHANGED: Only "Unpaid" and "Paid"
             required
           />
         </div>
@@ -664,6 +664,14 @@ const CreateInvoice = ({ existingInvoice, onSave }) => {
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-slate-700">Payment Mode:</span>
                 <span className="text-sm font-semibold text-slate-900">{formData.paymentMode || "Cash"}</span>
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-sm font-medium text-slate-700">Status:</span>
+                <span className={`text-sm font-semibold ${
+                  formData.status === "Paid" ? "text-emerald-600" : "text-amber-600"
+                }`}>
+                  {formData.status || "Unpaid"}
+                </span>
               </div>
             </div>
           </div>
